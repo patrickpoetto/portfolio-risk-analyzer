@@ -1,12 +1,12 @@
 """
-Modulo per la stima del rischio di cambio.
+Module for estimating currency (FX) risk.
 
-Il resto della pipeline calcola rendimenti/volatilità in valuta LOCALE di
-ciascun titolo (corretto per Sharpe/volatilità/correlazione, dato che sono
-scale-invariant rispetto alla valuta). Ma un investitore con capitale in EUR
-che tiene titoli in USD/GBP/CHF sopporta anche un rischio di cambio che
-quella parte della pipeline non vede. Questo modulo lo quantifica a parte,
-come disclosure esplicita, invece di fingere che non esista.
+The rest of the pipeline computes returns/volatility in each stock's LOCAL
+currency (correct for Sharpe/volatility/correlation, since these are
+scale-invariant with respect to currency). But an investor with capital in
+EUR holding USD/GBP/CHF stocks also bears a currency risk that part of the
+pipeline doesn't see. This module quantifies it separately, as an explicit
+disclosure, instead of pretending it doesn't exist.
 """
 
 import yfinance as yf
@@ -15,15 +15,15 @@ from typing import Dict, List
 FX_PAIRS_VS_EUR = {
     'USD': 'EURUSD=X',
     'GBP': 'EURGBP=X',
-    'GBp': 'EURGBP=X',  # GBp = pence, stesso sottostante/rischio cambio di GBP
+    'GBp': 'EURGBP=X',  # GBp = pence, same underlying/currency risk as GBP
     'CHF': 'EURCHF=X',
 }
 
 
 def fetch_fx_volatility(currencies: List[str], period: str = "1y") -> Dict[str, float]:
     """
-    Scarica i tassi di cambio verso EUR per le valute non-EUR presenti nel
-    portafoglio e calcola la loro volatilità annualizzata storica.
+    Downloads exchange rates against EUR for the non-EUR currencies present
+    in the portfolio and computes their historical annualized volatility.
     """
     result = {}
     unique_currencies = set(c for c in currencies if c and c != 'EUR')
@@ -47,11 +47,11 @@ def fetch_fx_volatility(currencies: List[str], period: str = "1y") -> Dict[str, 
 
 def fetch_latest_fx_rates(currencies: List[str]) -> Dict[str, float]:
     """
-    Scarica il tasso di cambio spot più recente verso EUR (quante unità di
-    valuta locale per 1 EUR) per ogni valuta non-EUR data. A differenza di
-    fetch_fx_volatility (che serve la volatilità storica per la disclosure
-    di rischio cambio), qui serve il rate puntuale per convertire in EUR un
-    valore di mercato corrente (holdings/portfolio_monitor.py).
+    Downloads the latest spot exchange rate against EUR (how many units of
+    local currency per 1 EUR) for each given non-EUR currency. Unlike
+    fetch_fx_volatility (which serves the historical volatility for the
+    risk disclosure), this one is used for the point-in-time rate needed to
+    convert a current market value to EUR (holdings/portfolio_monitor.py).
     """
     rates = {}
     unique_currencies = set(c for c in currencies if c and c != 'EUR')
@@ -75,9 +75,9 @@ def fetch_latest_fx_rates(currencies: List[str]) -> Dict[str, float]:
 
 def convert_to_eur(amount_local: float, currency: str, fx_rates: Dict[str, float]) -> float:
     """
-    Converte un importo in valuta locale in EUR usando i rate da
-    fetch_latest_fx_rates. Gestisce GBp (pence): prima /100 per GBP, poi
-    applica il rate EUR/GBP.
+    Converts an amount in local currency to EUR using the rates from
+    fetch_latest_fx_rates. Handles GBp (pence): first /100 to get GBP, then
+    applies the EUR/GBP rate.
     """
     if currency is None or currency == 'EUR':
         return amount_local
@@ -88,7 +88,7 @@ def convert_to_eur(amount_local: float, currency: str, fx_rates: Dict[str, float
 
     rate = fx_rates.get(currency)
     if not rate:
-        raise ValueError(f"Nessun tasso di cambio disponibile per {currency}")
+        raise ValueError(f"No exchange rate available for {currency}")
     return amount_local / rate
 
 
@@ -97,12 +97,12 @@ def estimate_currency_risk(weights: Dict[str, float],
                            base_currency: str = "EUR",
                            period: str = "1y") -> Dict:
     """
-    Stima il rischio di cambio non coperto del portafoglio: quanto capitale
-    è esposto a ciascuna valuta diversa da quella base, e un contributo di
-    volatilità stimato in modo approssimato (somma pesata delle volatilità
-    FX per esposizione in valuta — un'approssimazione al primo ordine che
-    ignora la correlazione tra cambio ed equity e tra le valute stesse, una
-    semplificazione dichiarata, non un vero VaR multi-valuta).
+    Estimates the portfolio's unhedged currency risk: how much capital is
+    exposed to each currency other than the base one, and an approximate
+    volatility contribution (weighted sum of FX volatilities by currency
+    exposure — a first-order approximation that ignores the correlation
+    between FX and equity and between currencies themselves, a declared
+    simplification, not a real multi-currency VaR).
     """
     exposure_by_currency = {}
     for ticker, w in weights.items():

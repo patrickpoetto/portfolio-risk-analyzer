@@ -1,11 +1,11 @@
 """
-Monitoraggio live del portafoglio realmente detenuto (holdings/holdings.json).
+Live monitoring of the actually held portfolio (holdings/holdings.json).
 
-A differenza di main.py (che genera un report di allocazione/ottimizzazione
-IPOTETICO per un capitale dato), questo modulo guarda lo stato REALE delle
-posizioni: prezzo corrente, valore di mercato, plus/minusvalenza non
-realizzata rispetto al prezzo medio di carico, peso corrente in portafoglio.
-È il motore dati condiviso da dashboard.py (report HTML) e telegram_bot.py.
+Unlike main.py (which generates a HYPOTHETICAL allocation/optimization
+report for a given capital), this module looks at the REAL state of the
+positions: current price, market value, unrealized gain/loss relative to
+the average cost basis, current portfolio weight. It is the shared data
+engine for dashboard.py (HTML report) and telegram_bot.py.
 """
 
 import json
@@ -25,9 +25,9 @@ VALUE_HISTORY_FILE = os.path.join(HOLDINGS_DIR, "value_history.json")
 
 def fetch_live_prices(tickers: List[str]) -> Dict[str, Optional[float]]:
     """
-    Prezzo corrente (in valuta locale di quotazione) per ogni ticker, via
-    fast_info (un solo endpoint leggero, niente storico) con fallback su
-    .info se fast_info non lo espone per quel titolo.
+    Current price (in local listing currency) for each ticker, via
+    fast_info (a single lightweight endpoint, no history) with a fallback
+    to .info if fast_info doesn't expose it for that stock.
     """
     prices = {}
     for ticker in tickers:
@@ -44,12 +44,12 @@ def fetch_live_prices(tickers: List[str]) -> Dict[str, Optional[float]]:
 
 def build_snapshot() -> pd.DataFrame:
     """
-    Costruisce lo snapshot corrente del portafoglio: una riga per posizione
-    con prezzo live, valore di mercato in EUR, plus/minusvalenza non
-    realizzata (assoluta e %), peso corrente.
+    Builds the current snapshot of the portfolio: one row per position with
+    the live price, market value in EUR, unrealized gain/loss (absolute and
+    %), current weight.
 
     Returns:
-        DataFrame con: ticker, name, exchange, currency, shares,
+        DataFrame with: ticker, name, exchange, currency, shares,
         avg_cost_eur, cost_basis_eur, last_price_local, last_price_eur,
         market_value_eur, unrealized_pl_eur, unrealized_pl_pct, weight
     """
@@ -104,7 +104,7 @@ def build_snapshot() -> pd.DataFrame:
 
 
 def portfolio_totals(snapshot: pd.DataFrame, realized_pl_total_eur: float = 0.0) -> Dict:
-    """Aggregati sull'intero portafoglio a partire dallo snapshot per-posizione."""
+    """Portfolio-wide aggregates built from the per-position snapshot."""
     valid = snapshot.dropna(subset=["market_value_eur"])
     total_value = valid["market_value_eur"].sum()
     total_cost = snapshot["cost_basis_eur"].sum()
@@ -125,13 +125,12 @@ def portfolio_totals(snapshot: pd.DataFrame, realized_pl_total_eur: float = 0.0)
 
 def record_daily_value(totals: Dict) -> None:
     """
-    Appende il valore di mercato totale odierno a un log storico
-    (value_history.json), un punto al giorno (sovrascrive se lo snapshot
-    di oggi esiste già, per non sporcare il grafico con rilanci multipli
-    nello stesso giorno). È la serie usata dal grafico "andamento nel
-    tempo" della dashboard: a differenza di una ricostruzione a posteriori
-    dai prezzi storici, riflette il valore osservato nei momenti reali in
-    cui il monitor è stato eseguito.
+    Appends today's total market value to a historical log
+    (value_history.json), one point per day (overwrites if today's
+    snapshot already exists, so re-runs on the same day don't clutter the
+    chart). This is the series used by the dashboard's "value over time"
+    chart: unlike a retroactive reconstruction from historical prices, it
+    reflects the value observed at the real moments the monitor was run.
     """
     today = date.today().isoformat()
     history = []
@@ -166,9 +165,9 @@ def load_value_history() -> pd.DataFrame:
 
 def get_monitor_data() -> Dict:
     """
-    Punto di ingresso comodo: costruisce snapshot, totali, calendario
-    utili/dividendi e aggiorna lo storico valore — tutto quello che serve
-    a dashboard.py e telegram_bot.py in un'unica chiamata.
+    Convenience entry point: builds the snapshot, totals, earnings/dividend
+    calendar and updates the value history — everything dashboard.py and
+    telegram_bot.py need in a single call.
     """
     data = load_holdings()
     snapshot = build_snapshot()
@@ -195,11 +194,11 @@ if __name__ == "__main__":
     print(snap[["ticker", "name", "last_price_local", "currency", "market_value_eur",
                "unrealized_pl_eur", "unrealized_pl_pct", "weight"]].to_string(index=False))
     print()
-    print(f"Valore di mercato totale: {tot['total_market_value_eur']:,.2f} EUR")
-    print(f"Costo di carico totale:   {tot['total_cost_basis_eur']:,.2f} EUR")
-    print(f"Plus/minus non realizzata: {tot['unrealized_pl_eur']:,.2f} EUR "
+    print(f"Total market value:    {tot['total_market_value_eur']:,.2f} EUR")
+    print(f"Total cost basis:      {tot['total_cost_basis_eur']:,.2f} EUR")
+    print(f"Unrealized gain/loss:  {tot['unrealized_pl_eur']:,.2f} EUR "
           f"({tot['unrealized_pl_pct'] * 100:.2f}%)" if tot['unrealized_pl_pct'] is not None else "")
-    print(f"Plus/minus realizzata cumulata: {tot['realized_pl_eur']:,.2f} EUR")
-    print(f"Plus/minus totale: {tot['total_pl_eur']:,.2f} EUR")
+    print(f"Cumulative realized gain/loss: {tot['realized_pl_eur']:,.2f} EUR")
+    print(f"Total gain/loss: {tot['total_pl_eur']:,.2f} EUR")
     if tot["failed_tickers"]:
-        print(f"⚠️  Prezzo non disponibile per: {', '.join(tot['failed_tickers'])}")
+        print(f"⚠️  Price unavailable for: {', '.join(tot['failed_tickers'])}")

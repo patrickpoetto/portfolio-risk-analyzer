@@ -1,15 +1,15 @@
 """
-Dashboard di monitoraggio LIVE del portafoglio realmente detenuto.
+LIVE monitoring dashboard for the actually held portfolio.
 
-A differenza di main.py/html_report.py (report di allocazione ipotetico
-generato una tantum per un capitale/profilo dato), questa pagina mostra lo
-stato del portafoglio reale: valore di mercato corrente, plus/minusvalenza
-per posizione, andamento nel tempo, prossimi utili/dividendi. Riusa lo
-stesso tema visivo ("Midnight Terminal") e gli stessi helper Plotly di
-html_report.py per coerenza, invece di duplicare lo stile da zero.
+Unlike main.py/html_report.py (a hypothetical allocation report generated
+once for a given capital/profile), this page shows the state of the real
+portfolio: current market value, gain/loss per position, value over time,
+upcoming earnings/dividends. It reuses the same visual theme ("Midnight
+Terminal") and the same Plotly helpers as html_report.py for consistency,
+instead of duplicating the styling from scratch.
 
-Uso:
-    python dashboard.py                  # aggiorna e apre portfolio_dashboard.html
+Usage:
+    python dashboard.py                  # refreshes and opens portfolio_dashboard.html
 """
 
 import base64
@@ -30,13 +30,13 @@ OUTPUT_FILE = "portfolio_dashboard.html"
 
 def _fig_to_html(fig: go.Figure, div_id: str) -> str:
     """
-    Rasterizza il grafico in un PNG incorporato (base64) invece che come
-    Plotly interattivo: Telegram non apre gli HTML ricevuti in un browser
-    vero (niente JS eseguito), quindi un grafico interattivo risultava un
-    riquadro vuoto. Un'immagine statica si vede ovunque, anche
-    nell'anteprima di Telegram e offline — al costo di perdere hover/zoom.
-    `div_id` non serve più per il rendering ma resta per compatibilità
-    con le chiamate esistenti.
+    Rasterizes the chart into an embedded (base64) PNG instead of an
+    interactive Plotly figure: Telegram doesn't open received HTML files in
+    a real browser (no JS execution), so an interactive chart showed up as
+    an empty box. A static image displays everywhere, even in Telegram's
+    preview and offline — at the cost of losing hover/zoom. `div_id` is no
+    longer needed for rendering but is kept for compatibility with
+    existing call sites.
     """
     png_bytes = fig.to_image(format="png", scale=2)
     b64 = base64.b64encode(png_bytes).decode("ascii")
@@ -45,36 +45,35 @@ def _fig_to_html(fig: go.Figure, div_id: str) -> str:
 
 def create_value_history_chart(value_history: pd.DataFrame) -> str:
     """
-    Andamento del valore di mercato totale nel tempo, con il costo di
-    carico come riferimento tratteggiato. Costruito dai punti realmente
-    osservati ad ogni esecuzione del monitor (holdings/value_history.json),
-    non da una ricostruzione storica: con un solo punto disponibile mostra
-    comunque il valore odierno, e si arricchisce di forma via via che il
-    monitor viene rilanciato nei giorni successivi.
+    Total market value over time, with the cost basis as a dashed
+    reference line. Built from the points actually observed on each
+    monitor run (holdings/value_history.json), not from a historical
+    reconstruction: with a single data point it still shows today's value,
+    and it fills out in shape as the monitor is re-run on subsequent days.
     """
     fig = go.Figure()
 
     if value_history.empty:
-        fig.update_layout(_base_layout(height=350, title="Andamento Valore Portafoglio"))
+        fig.update_layout(_base_layout(height=350, title="Portfolio Value Over Time"))
         return _fig_to_html(fig, "chart_value_history")
 
     fig.add_trace(go.Scatter(
         x=value_history['date'], y=value_history['total_market_value_eur'],
-        mode='lines+markers', name='Valore di mercato',
+        mode='lines+markers', name='Market value',
         line=dict(color=THEME_CONFIG['accent'], width=3),
         marker=dict(size=7, color=THEME_CONFIG['accent']),
         fill='tozeroy', fillcolor=THEME_CONFIG['accent_soft'],
     ))
     fig.add_trace(go.Scatter(
         x=value_history['date'], y=value_history['total_cost_basis_eur'],
-        mode='lines', name='Costo di carico',
+        mode='lines', name='Cost basis',
         line=dict(color=THEME_CONFIG['text_secondary'], width=2, dash='dash'),
     ))
 
     fig.update_layout(_base_layout(
-        title="Andamento Valore Portafoglio",
+        title="Portfolio Value Over Time",
         height=420,
-        xaxis=_axis(title="Data"),
+        xaxis=_axis(title="Date"),
         yaxis=_axis(title="EUR"),
         hovermode='x unified',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
@@ -85,7 +84,7 @@ def create_value_history_chart(value_history: pd.DataFrame) -> str:
 
 
 def create_pl_bar_chart(snapshot: pd.DataFrame) -> str:
-    """Barre orizzontali con la plus/minusvalenza % per posizione, verde/rosso in base al segno."""
+    """Horizontal bars with the %gain/loss per position, green/red by sign."""
     df = snapshot.dropna(subset=['unrealized_pl_pct']).sort_values('unrealized_pl_pct')
     colors = [THEME_CONFIG['positive'] if v >= 0 else THEME_CONFIG['negative'] for v in df['unrealized_pl_pct']]
 
@@ -94,12 +93,12 @@ def create_pl_bar_chart(snapshot: pd.DataFrame) -> str:
         marker=dict(color=colors),
         text=[f"{v:+.1%}" for v in df['unrealized_pl_pct']],
         textposition='outside',
-        hovertemplate='<b>%{y}</b><br>Plus/minus: %{x:+.2%}<extra></extra>',
+        hovertemplate='<b>%{y}</b><br>Gain/loss: %{x:+.2%}<extra></extra>',
     ))
     fig.update_layout(_base_layout(
-        title="Plus/Minusvalenza % per Titolo",
+        title="Gain/Loss % per Stock",
         height=max(400, 24 * len(df)),
-        xaxis=_axis(title="Plus/minusvalenza %", tickformat='+.0%'),
+        xaxis=_axis(title="Gain/loss %", tickformat='+.0%'),
         yaxis=_axis(title=""),
         showlegend=False,
         margin=dict(l=90, r=60, t=60, b=40),
@@ -108,7 +107,7 @@ def create_pl_bar_chart(snapshot: pd.DataFrame) -> str:
 
 
 def create_position_pie_chart(pie_data: pd.DataFrame) -> str:
-    """Torta allocazione per titolo, interattiva (vedi _fig_to_html)."""
+    """Per-stock allocation pie chart, interactive (see _fig_to_html)."""
     fig = px.pie(
         pie_data, values='weight', names='ticker', hole=0.4,
         color_discrete_sequence=CHART_COLORWAY,
@@ -119,7 +118,7 @@ def create_position_pie_chart(pie_data: pd.DataFrame) -> str:
         marker=dict(line=dict(color=THEME_CONFIG['bg_card'], width=2)),
     )
     fig.update_layout(_base_layout(
-        title="Allocazione per Titolo",
+        title="Allocation by Stock",
         showlegend=False,
         height=500,
         margin=dict(l=20, r=20, t=60, b=20),
@@ -130,14 +129,14 @@ def create_position_pie_chart(pie_data: pd.DataFrame) -> str:
 def create_positions_table(snapshot: pd.DataFrame) -> str:
     rows = []
     for _, p in snapshot.iterrows():
-        price_eur = f"{p['last_price_eur']:.2f}" if pd.notna(p['last_price_eur']) else "n/d"
-        value_eur = f"{p['market_value_eur']:,.2f}" if pd.notna(p['market_value_eur']) else "n/d"
+        price_eur = f"{p['last_price_eur']:.2f}" if pd.notna(p['last_price_eur']) else "n/a"
+        value_eur = f"{p['market_value_eur']:,.2f}" if pd.notna(p['market_value_eur']) else "n/a"
         pl_eur = p['unrealized_pl_eur']
         pl_pct = p['unrealized_pl_pct']
-        pl_eur_str = f"{pl_eur:+,.2f}" if pd.notna(pl_eur) else "n/d"
-        pl_pct_str = f"{pl_pct:+.2%}" if pd.notna(pl_pct) else "n/d"
+        pl_eur_str = f"{pl_eur:+,.2f}" if pd.notna(pl_eur) else "n/a"
+        pl_pct_str = f"{pl_pct:+.2%}" if pd.notna(pl_pct) else "n/a"
         pl_class = _pct_class(pl_eur) if pd.notna(pl_eur) else ""
-        weight_str = f"{p['weight']:.2%}" if pd.notna(p['weight']) else "n/d"
+        weight_str = f"{p['weight']:.2%}" if pd.notna(p['weight']) else "n/a"
 
         rows.append(f'''
         <tr>
@@ -156,8 +155,8 @@ def create_positions_table(snapshot: pd.DataFrame) -> str:
     <div class="table-scroll">
     <table class="data-table">
         <thead><tr>
-            <th>Ticker</th><th>Nome</th><th>Azioni</th><th>Prezzo Medio</th>
-            <th>Prezzo Attuale</th><th>Valore (EUR)</th><th>P/L (EUR)</th><th>P/L (%)</th><th>Peso</th>
+            <th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Price</th>
+            <th>Current Price</th><th>Value (EUR)</th><th>P/L (EUR)</th><th>P/L (%)</th><th>Weight</th>
         </tr></thead>
         <tbody>{''.join(rows)}</tbody>
     </table>
@@ -165,25 +164,25 @@ def create_positions_table(snapshot: pd.DataFrame) -> str:
 
 
 def create_events_table(calendar_df: pd.DataFrame) -> str:
-    """Prossimi utili e dividendi per i titoli in portafoglio, ordinati per data più vicina."""
+    """Upcoming earnings and dividends for the stocks in the portfolio, ordered by nearest date."""
     if calendar_df.empty:
-        return "<p class='muted-note'>Nessun evento in calendario disponibile.</p>"
+        return "<p class='muted-note'>No calendar event available.</p>"
 
     df = calendar_df.copy()
 
     def fmt_date(d):
-        return d.strftime('%d/%m/%Y') if pd.notna(d) else "n/d"
+        return d.strftime('%d/%m/%Y') if pd.notna(d) else "n/a"
 
     def next_event(row):
         candidates = []
         if pd.notna(row.get('next_earnings_date')):
-            candidates.append((row['next_earnings_date'], f"📢 Utili {fmt_date(row['next_earnings_date'])}"))
+            candidates.append((row['next_earnings_date'], f"📢 Earnings {fmt_date(row['next_earnings_date'])}"))
         if pd.notna(row.get('next_ex_dividend_date')):
-            candidates.append((row['next_ex_dividend_date'], f"💶 Stacco div. {fmt_date(row['next_ex_dividend_date'])}"))
+            candidates.append((row['next_ex_dividend_date'], f"💶 Ex-div {fmt_date(row['next_ex_dividend_date'])}"))
         if pd.notna(row.get('next_dividend_pay_date')):
-            candidates.append((row['next_dividend_pay_date'], f"💰 Pagamento div. {fmt_date(row['next_dividend_pay_date'])}"))
+            candidates.append((row['next_dividend_pay_date'], f"💰 Dividend payment {fmt_date(row['next_dividend_pay_date'])}"))
         if not candidates:
-            return None, "Nessun evento noto"
+            return None, "No known event"
         candidates.sort(key=lambda c: c[0])
         return candidates[0][0], " · ".join(c[1] for c in candidates)
 
@@ -198,7 +197,7 @@ def create_events_table(calendar_df: pd.DataFrame) -> str:
     return f'''
     <div class="table-scroll">
     <table class="data-table">
-        <thead><tr><th>Ticker</th><th>Prossimo Evento</th></tr></thead>
+        <thead><tr><th>Ticker</th><th>Next Event</th></tr></thead>
         <tbody>{''.join(rows)}</tbody>
     </table>
     </div>'''
@@ -214,7 +213,7 @@ def generate_dashboard_html(monitor_data: dict, output_file: str = OUTPUT_FILE) 
 
     pl_class = _pct_class(totals['unrealized_pl_eur'])
     total_pl_class = _pct_class(totals['total_pl_eur'])
-    pl_pct_str = f"{totals['unrealized_pl_pct']:+.2%}" if totals['unrealized_pl_pct'] is not None else "n/d"
+    pl_pct_str = f"{totals['unrealized_pl_pct']:+.2%}" if totals['unrealized_pl_pct'] is not None else "n/a"
 
     pie_data = snapshot.dropna(subset=['weight'])[['ticker', 'weight']]
     pie_html = create_position_pie_chart(pie_data) if not pie_data.empty else ""
@@ -227,18 +226,18 @@ def generate_dashboard_html(monitor_data: dict, output_file: str = OUTPUT_FILE) 
     if totals['failed_tickers']:
         failed_html = f'''
         <div class="info-box info-box--warning">
-            <h3>⚠️ Prezzo non disponibile</h3>
-            <p>Impossibile scaricare il prezzo corrente per: {', '.join(totals['failed_tickers'])}</p>
+            <h3>⚠️ Price unavailable</h3>
+            <p>Could not download the current price for: {', '.join(totals['failed_tickers'])}</p>
         </div>'''
 
     html_template = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="refresh" content="300">
-        <title>Portafoglio Live - {datetime.now().strftime('%d/%m/%Y %H:%M')}</title>
+        <title>Live Portfolio - {datetime.now().strftime('%d/%m/%Y %H:%M')}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
@@ -317,30 +316,30 @@ def generate_dashboard_html(monitor_data: dict, output_file: str = OUTPUT_FILE) 
     <body>
         <div class="container">
             <header>
-                <h1>📡 PORTAFOGLIO LIVE</h1>
-                <p>Aggiornato il {datetime.now().strftime('%d/%m/%Y alle %H:%M')} · si aggiorna da solo ogni 5 minuti se lasciata aperta</p>
+                <h1>📡 LIVE PORTFOLIO</h1>
+                <p>Updated on {datetime.now().strftime('%d/%m/%Y at %H:%M')} · refreshes itself every 5 minutes if left open</p>
             </header>
             <div class="content">
                 <div class="section">
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <h3>Valore di Mercato</h3>
+                            <h3>Market Value</h3>
                             <div class="stat-value">{totals['total_market_value_eur']:,.2f} €</div>
                         </div>
                         <div class="stat-card">
-                            <h3>Costo di Carico</h3>
+                            <h3>Cost Basis</h3>
                             <div class="stat-value">{totals['total_cost_basis_eur']:,.2f} €</div>
                         </div>
                         <div class="stat-card">
-                            <h3>Plus/Minus Non Realizzata</h3>
+                            <h3>Unrealized Gain/Loss</h3>
                             <div class="stat-value {pl_class}">{totals['unrealized_pl_eur']:+,.2f} € ({pl_pct_str})</div>
                         </div>
                         <div class="stat-card">
-                            <h3>Plus/Minus Realizzata</h3>
+                            <h3>Realized Gain/Loss</h3>
                             <div class="stat-value {_pct_class(totals['realized_pl_eur'])}">{totals['realized_pl_eur']:+,.2f} €</div>
                         </div>
                         <div class="stat-card">
-                            <h3>Plus/Minus Totale</h3>
+                            <h3>Total Gain/Loss</h3>
                             <div class="stat-value {total_pl_class}">{totals['total_pl_eur']:+,.2f} €</div>
                         </div>
                     </div>
@@ -348,9 +347,9 @@ def generate_dashboard_html(monitor_data: dict, output_file: str = OUTPUT_FILE) 
                 </div>
 
                 <div class="section">
-                    <h2>Andamento nel Tempo</h2>
+                    <h2>Value Over Time</h2>
                     <div class="chart-container">{value_history_html}</div>
-                    <p class="muted-note">Un punto per ogni esecuzione del monitor: rilancialo periodicamente (o lascialo fare al bot Telegram) per costruire lo storico giorno per giorno.</p>
+                    <p class="muted-note">One point per monitor run: re-run it periodically (or let the Telegram bot do it) to build up the day-by-day history.</p>
                 </div>
 
                 <div class="two-col-grid">
@@ -359,16 +358,16 @@ def generate_dashboard_html(monitor_data: dict, output_file: str = OUTPUT_FILE) 
                 </div>
 
                 <div class="section">
-                    <h2>Posizioni Dettagliate</h2>
+                    <h2>Position Detail</h2>
                     {positions_table_html}
                 </div>
 
                 <div class="section">
-                    <h2>Prossimi Eventi (Utili / Dividendi)</h2>
+                    <h2>Upcoming Events (Earnings / Dividends)</h2>
                     {events_table_html}
                 </div>
             </div>
-            <footer>Dashboard generata automaticamente — dati di mercato via Yahoo Finance, possono avere ritardo</footer>
+            <footer>Dashboard generated automatically — market data via Yahoo Finance, may be delayed</footer>
         </div>
     </body>
     </html>
@@ -383,5 +382,5 @@ def generate_dashboard_html(monitor_data: dict, output_file: str = OUTPUT_FILE) 
 if __name__ == "__main__":
     data = get_monitor_data()
     path = generate_dashboard_html(data)
-    print(f"✅ Dashboard generata: {path}")
+    print(f"✅ Dashboard generated: {path}")
     webbrowser.open(f"file://{os.path.abspath(path)}")

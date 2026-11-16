@@ -1,16 +1,16 @@
 """
-Configurazione del portafoglio con tutti i ticker selezionati
+Portfolio configuration with all selected tickers
 """
 
-# Lista completa dei ticker con nomi descrittivi
+# Full list of tickers with descriptive names
 PORTFOLIO_TICKERS = {
-    # Energia Nucleare / Uranio
+    # Nuclear Energy / Uranium
     "LEU": "Centrus Energy Corp",
-    # "KAP": "Kazatomprom JSC (GDR)",  # Non disponibile su Yahoo Finance
+    # "KAP": "Kazatomprom JSC (GDR)",  # Not available on Yahoo Finance
     "CCJ": "Cameco Corp",
     "BWXT": "BWX Technologies Inc",
-    # "BOE.ASX": "Boss Energy Ltd",  # Non disponibile - prova "BOE.AX" se vuoi
-    "UEC": "Uranium Energy Corp",  # Alternativa
+    # "BOE.ASX": "Boss Energy Ltd",  # Not available - try "BOE.AX" instead
+    "UEC": "Uranium Energy Corp",  # Alternative
     "CEG": "Constellation Energy Corp",
     "DNN": "Denison Mines Corp",
 
@@ -25,7 +25,7 @@ PORTFOLIO_TICKERS = {
     # Battery / Energy Storage
     "ABAT": "American Battery Technology Co",
 
-    # Semiconduttori / Technology
+    # Semiconductors / Technology
     "MRVL": "Marvell Technology Group Ltd",
     "SKYT": "SkyWater Technology Inc",
     "SMCI": "Super Micro Computer Inc",
@@ -37,7 +37,7 @@ PORTFOLIO_TICKERS = {
     "NVDA": "Nvidia Corp",
     "QCOM": "Qualcomm Inc",
 
-    # Utility / Energia
+    # Utilities / Energy
     "NEE": "NextEra Energy Inc",
     "ETR": "Entergy Corp",
     "GE": "General Electric Co",
@@ -45,7 +45,7 @@ PORTFOLIO_TICKERS = {
     "XOM": "Exxon Mobil Corp",
     "TTE": "TotalEnergies SE",
 
-    # Industriali / Costruzioni
+    # Industrials / Construction
     "CW": "Curtiss-Wright Corporation",
     "FLR": "Fluor Corp",
     "CAT": "Caterpillar Inc",
@@ -55,14 +55,14 @@ PORTFOLIO_TICKERS = {
     "HON": "Honeywell International Inc",
     "SIE.DE": "Siemens AG",  # Xetra
 
-    # Pharma / Farmaceutico
+    # Pharma / Pharmaceuticals
     "BAYN.DE": "Bayer AG",
     "PFE": "Pfizer Inc",
     "JNJ": "Johnson & Johnson",
     "LLY": "Eli Lilly and Co",
     "NVO": "Novo Nordisk A/S",
 
-    # Biomedicale / Medical Devices
+    # Biomedical / Medical Devices
     "MDT": "Medtronic plc",
     "ISRG": "Intuitive Surgical Inc",
     "BSX": "Boston Scientific Corp",
@@ -71,7 +71,7 @@ PORTFOLIO_TICKERS = {
     "ABT": "Abbott Laboratories",
     "ZBH": "Zimmer Biomet Holdings Inc",
 
-    # Mining / Materiali
+    # Mining / Materials
     "CENX": "Century Aluminum Company",
     "PPTA": "Perpetua Resources Corp",
     "RIO.L": "Rio Tinto Plc",
@@ -79,11 +79,11 @@ PORTFOLIO_TICKERS = {
     "BHP": "BHP Group Ltd",
 
     # Defense / Aerospace
-    # "CSG.AS": "Czechoslovak Group",  # Non disponibile su Yahoo Finance
+    # "CSG.AS": "Czechoslovak Group",  # Not available on Yahoo Finance
     "RR.L": "Rolls-Royce Holdings",  # London Stock Exchange
-    "LMT": "Lockheed Martin",  # Alternativa Defense
+    "LMT": "Lockheed Martin",  # Defense alternative
     "NOC": "Northrop Grumman Corp",
-    "LDO.MI": "Leonardo SpA",  # Milano
+    "LDO.MI": "Leonardo SpA",  # Milan
 
     # Tech / Cloud / Software
     "SNOW": "Snowflake Inc",
@@ -111,20 +111,20 @@ PORTFOLIO_TICKERS = {
     # Components
     "LITE": "Lumentum Holdings Inc",
 
-    # Banking & Financial Services (Europa)
+    # Banking & Financial Services (Europe)
     #"HSBA.L": "HSBC Holdings plc",  # London Stock Exchange
     #"BARC.L": "Barclays plc",  # London Stock Exchange
     #"SAN.MC": "Banco Santander SA",  # Madrid
     #"BBVA.MC": "Banco Bilbao Vizcaya Argentaria SA",  # Madrid
-    #"BNP.PA": "BNP Paribas SA",  # Parigi
+    #"BNP.PA": "BNP Paribas SA",  # Paris
     #"DBK.DE": "Deutsche Bank AG",  # Xetra
-    #"ALV.DE": "Allianz SE",  # Xetra (assicurazioni)
+    #"ALV.DE": "Allianz SE",  # Xetra (insurance)
     "INGA.AS": "ING Groep NV",  # Amsterdam
     "UBSG.SW": "UBS Group AG",  # Swiss Exchange
-    #"ISP.MI": "Intesa Sanpaolo SpA",  # Milano
+    #"ISP.MI": "Intesa Sanpaolo SpA",  # Milan
 }
 
-# Classificazione per settore (semplificata)
+# Sector classification (simplified)
 SECTOR_CLASSIFICATION = {
     "Nuclear Energy": ["LEU", "CCJ", "BWXT", "UEC", "CEG", "DNN"],
     "Quantum Computing": ["RGTI", "QBTS", "IONQ", "QUBT", "ARQQ", "QSI"],
@@ -142,8 +142,8 @@ SECTOR_CLASSIFICATION = {
                                      "DBK.DE", "ALV.DE", "INGA.AS", "UBSG.SW", "ISP.MI"],
 }
 
-# Classificazione per area geografica (per borsa di quotazione/valuta, non
-# per nazionalità della società: es. NIO/TTE/NVO sono ADR USD su borsa USA)
+# Geographic classification (by listing exchange/currency, not company
+# nationality: e.g. NIO/TTE/NVO are USD ADRs listed on US exchanges)
 GEOGRAPHIC_CLASSIFICATION = {
     "North America": ["LEU", "CCJ", "BWXT", "RGTI", "QBTS", "IONQ", "QUBT", "ABAT",
                      "MRVL", "SKYT", "SMCI", "AVGO", "NEE", "ETR", "GE", "CW", "FLR",
@@ -161,174 +161,174 @@ GEOGRAPHIC_CLASSIFICATION = {
     "Asia-Pacific": ["TSM"],
 }
 
-# Esempio di allocazione iniziale (in EUR o USD - usa la stessa valuta)
-# Modifica questi valori con il tuo capitale effettivo per ogni posizione
+# Sample initial allocation (in EUR or USD - use the same currency)
+# Edit these values with your actual capital for each position
 EXAMPLE_HOLDINGS = {
-    # Lascia vuoto o aggiungi i tuoi valori reali
+    # Leave empty or add your real values
     # "LEU": 1000,
     # "RGTI": 1500,
     # ... etc
 }
 
 # =============================================================================
-# PARAMETRI DI CONFIGURAZIONE GENERALE
+# GENERAL CONFIGURATION PARAMETERS
 # =============================================================================
 
-# Tasso privo di rischio annuo usato per lo Sharpe Ratio (es. rendimento
-# di un BOT/T-Bill a breve termine). Centralizzato qui: prima era duplicato
-# come valore fisso in 3 punti diversi del codice (risk_analysis.py e
-# backtest.py), quindi andava aggiornato manualmente in più posti quando
-# cambiano i tassi di mercato.
+# Annual risk-free rate used for the Sharpe Ratio (e.g. short-term T-Bill
+# yield). Centralized here: it used to be duplicated as a fixed value in
+# 3 different places in the code (risk_analysis.py and backtest.py), so it
+# had to be updated manually in multiple spots whenever market rates changed.
 RISK_FREE_RATE = 0.035
 
-# --- Parametri Default per l'Analisi ---
+# --- Default Analysis Parameters ---
 DEFAULT_CONFIG = {
-    "capital": 400000.0,              # Capitale di default (EUR)
-    "risk_profile": "moderate",      # Profilo di rischio: conservative, moderate, aggressive
-    "period": "5y",                  # Periodo storico: 1y, 2y, 5y, max
-    "output_file": "portfolio_report.html",  # Nome file output
+    "capital": 400000.0,              # Default capital (EUR)
+    "risk_profile": "moderate",      # Risk profile: conservative, moderate, aggressive
+    "period": "5y",                  # Historical period: 1y, 2y, 5y, max
+    "output_file": "portfolio_report.html",  # Output file name
 }
 
-# --- Parametri Allocazione Pratica ---
+# --- Practical Allocation Parameters ---
 ALLOCATION_CONFIG = {
-    "min_position_size": 500.0,       # Investimento minimo per titolo (EUR)
-    "max_weight_per_stock": 0.06,    # Peso massimo singolo titolo (12%)
-    # Peso minimo imposto nell'ottimizzatore per ogni titolo selezionato,
-    # come frazione del peso equipesato (1/N). Senza un pavimento, SLSQP
-    # tende a soluzioni d'angolo che azzerano metà dei titoli scelti apposta
-    # per diversificazione (vedi optimization.mean_variance_optimize) — un
-    # risultato tecnicamente ottimo ma che vanifica lo scopo della selezione.
+    "min_position_size": 500.0,       # Minimum investment per stock (EUR)
+    "max_weight_per_stock": 0.06,    # Maximum weight per single stock (6%)
+    # Minimum weight enforced by the optimizer for each selected stock, as a
+    # fraction of the equal-weight share (1/N). Without a floor, SLSQP tends
+    # toward corner solutions that zero out half of the stocks chosen
+    # specifically for diversification (see optimization.mean_variance_optimize)
+    # — a technically optimal result that defeats the purpose of the selection.
     "min_weight_factor": 0.3,
 }
 
-# --- Parametri Numero Titoli Ottimale (data-driven) ---
-# Il numero di titoli NON è più scelto per fasce di capitale hardcoded: viene
-# calcolato dalla vera curva di diversificazione (rischio di portafoglio
-# equipesato via w'Σw al crescere di N, sui dati reali) e poi vincolato dal
-# capitale disponibile. Vedi practical_allocation.select_portfolio().
+# --- Optimal Number of Stocks Parameters (data-driven) ---
+# The number of stocks is NO LONGER chosen from hardcoded capital brackets:
+# it is computed from the real diversification curve (equal-weighted
+# portfolio risk via w'Σw as N grows, on real data) and then constrained by
+# the available capital. See practical_allocation.select_portfolio().
 #
-# Il criterio è il minimo EMPIRICO della curva di rischio: continua ad
-# aggiungere titoli finché il rischio scende, fermati (circa) dove smette di
-# migliorare in modo stabile. "Stabile" = il rischio resta entro
-# stability_tolerance dal minimo assoluto per almeno stability_window titoli
-# consecutivi, non un singolo punto basso isolato (altrimenti un avvallamento
-# casuale della curva farebbe scattare la soglia troppo presto o troppo tardi
-# a seconda del rumore nei dati).
+# The criterion is the EMPIRICAL minimum of the risk curve: keep adding
+# stocks while risk keeps falling, stop (roughly) where it stops improving
+# in a stable way. "Stable" = risk stays within stability_tolerance of the
+# absolute minimum for at least stability_window consecutive stocks, not a
+# single isolated low point (otherwise a random dip in the curve would
+# trigger the threshold too early or too late depending on data noise).
 #
-# min_stocks=20 è il floor pratico, che vince comunque se il calcolo sopra
-# darebbe un numero minore: 20-30 titoli è l'intervallo comunemente citato in
-# pratica per una diversificazione adeguata di portafogli di dimensioni
-# significative (Statman 1987, che tiene conto anche dei costi di
-# transazione oltre alla sola riduzione di varianza).
+# min_stocks=20 is the practical floor, which still wins if the calculation
+# above would give a lower number: 20-30 stocks is the range commonly cited
+# in practice for adequate diversification of portfolios of meaningful size
+# (Statman 1987, which also accounts for transaction costs in addition to
+# pure variance reduction).
 DIVERSIFICATION_TARGET_CONFIG = {
-    "stability_tolerance": 0.02,   # entro il 2% del rischio minimo assoluto è considerato "convergenza"
-    "stability_window": 3,        # titoli consecutivi richiesti entro la tolleranza
-    "min_stocks": 20,              # floor pratico (vedi nota sopra)
+    "stability_tolerance": 0.02,   # within 2% of the absolute minimum risk counts as "convergence"
+    "stability_window": 3,        # consecutive stocks required within the tolerance
+    "min_stocks": 20,              # practical floor (see note above)
 }
 
-# --- Parametri Correlazione e Diversificazione ---
-# (i pesi per la selezione titoli sono in RISK_PROFILES, uno per profilo di rischio)
+# --- Correlation and Diversification Parameters ---
+# (stock-selection weights are in RISK_PROFILES, one per risk profile)
 CORRELATION_CONFIG = {
-    "high_correlation_threshold": 0.7,  # Soglia per correlazione "alta" (70%)
-    "max_correlation_penalty": 0.8,     # Oltre questa soglia la penalty è massima
+    "high_correlation_threshold": 0.7,  # Threshold for "high" correlation (70%)
+    "max_correlation_penalty": 0.8,     # Beyond this threshold the penalty is at its maximum
 }
 
-# --- Parametri Score di Diversificazione ---
-# Lo score combina due aspetti indipendenti: correlazione media tra i titoli
-# (poco utile se i pesi sono molto concentrati) e concentrazione dei pesi via
-# HHI (Herfindahl-Hirschman Index: 1/N se equipesato, 1 se tutto su un titolo)
+# --- Diversification Score Parameters ---
+# The score combines two independent aspects: average correlation between
+# stocks (not very useful if weights are highly concentrated) and weight
+# concentration via HHI (Herfindahl-Hirschman Index: 1/N if equal-weighted,
+# 1 if everything is in a single stock)
 DIVERSIFICATION_CONFIG = {
-    "correlation_weight": 0.6,      # Peso della componente correlazione nello score finale
-    "concentration_weight": 0.4,    # Peso della componente concentrazione (HHI) nello score finale
+    "correlation_weight": 0.6,      # Weight of the correlation component in the final score
+    "concentration_weight": 0.4,    # Weight of the concentration component (HHI) in the final score
 }
 
-# --- Parametri Valutazione Fondamentale (sopra/sottovalutazione) ---
-# Penalizza i titoli cari rispetto ai pari del proprio settore (non ha senso
-# confrontare il P/E di un titolo nucleare con uno di quantum computing).
-# Il punteggio è un percentile 0-1 calcolato su questi multipli disponibili.
+# --- Fundamental Valuation Parameters (over/undervaluation) ---
+# Penalizes stocks that are expensive relative to peers in their own sector
+# (comparing the P/E of a nuclear stock with a quantum computing one makes
+# no sense). The score is a 0-1 percentile computed over these available
+# multiples.
 VALUATION_CONFIG = {
     "metrics": ["trailing_pe", "peg_ratio", "price_to_book"],
-    "penalty_weight": 0.3,   # quanto pesa la sopravvalutazione nello score finale (0=ignora, 1=pesa quanto le altre componenti)
+    "penalty_weight": 0.3,   # how much overvaluation weighs in the final score (0=ignore, 1=weighs as much as the other components)
 }
 
-# --- Profili di Rischio ---
-# Pesi per ottimizzazione allocazione per ogni profilo
+# --- Risk Profiles ---
+# Allocation-optimization weights for each profile
 RISK_PROFILES = {
     "conservative": {
         "sharpe_weight": 0.3,
         "correlation_weight": 0.5,
         "sector_weight": 0.2,
-        "description": "Focus su stabilità e diversificazione",
+        "description": "Focus on stability and diversification",
     },
     "moderate": {
         "sharpe_weight": 0.4,
         "correlation_weight": 0.4,
         "sector_weight": 0.2,
-        "description": "Bilanciamento tra performance e rischio",
+        "description": "Balance between performance and risk",
     },
     "aggressive": {
         "sharpe_weight": 0.6,
         "correlation_weight": 0.3,
         "sector_weight": 0.1,
-        "description": "Focus su massima performance",
+        "description": "Focus on maximum performance",
     },
 }
 
-# --- Parametri Backtest ---
+# --- Backtest Parameters ---
 BACKTEST_CONFIG = {
-    "benchmark_names": {              # ticker -> nome leggibile (S&P500, NASDAQ, MSCI World, Vanguard Total)
+    "benchmark_names": {              # ticker -> readable name (S&P500, NASDAQ, MSCI World, Vanguard Total)
         "^GSPC": "S&P 500",
         "^IXIC": "NASDAQ",
         "URTH": "MSCI World",
         "VT": "VT (Total World)"
     },
-    # Split in-sample / out-of-sample: la frazione finale dei dati scaricati
-    # (secondo --period) è tenuta da parte e MAI usata per scouting, selezione
-    # smart o ottimizzazione dei pesi. Il backtest la usa come test onesto,
-    # perché valuta la selezione su dati che non ha potuto vedere.
-    "out_of_sample_ratio": 0.2,        # frazione finale riservata al test
-    "min_out_of_sample_days": 60,      # holdout minimo (~3 mesi di trading)
-    "max_out_of_sample_days": 252,     # holdout massimo (~1 anno di trading)
+    # In-sample / out-of-sample split: the final fraction of the downloaded
+    # data (per --period) is held back and NEVER used for scouting, smart
+    # selection or weight optimization. The backtest uses it as an honest
+    # test, because it evaluates the selection on data it never saw.
+    "out_of_sample_ratio": 0.2,        # final fraction reserved for testing
+    "min_out_of_sample_days": 60,      # minimum holdout (~3 trading months)
+    "max_out_of_sample_days": 252,     # maximum holdout (~1 trading year)
 }
 
-# --- Parametri Liquidità ---
+# --- Cash Parameters ---
 CASH_CONFIG = {
-    "base_allocation": 0.10,         # Allocazione base liquidità (10%)
-    "volatility_multiplier": 0.25,   # Moltiplicatore per volatilità portfolio
-    "min_cash": 0.05,                # Minimo 5% liquidità
-    "max_cash": 0.25,                # Massimo 30% liquidità
+    "base_allocation": 0.10,         # Base cash allocation (10%)
+    "volatility_multiplier": 0.25,   # Multiplier for portfolio volatility
+    "min_cash": 0.05,                # Minimum 5% cash
+    "max_cash": 0.25,                # Maximum 25% cash
 }
 
-# --- Parametri Rilevamento Condizione di Mercato ---
-# Usati per stimare bullish/bearish/volatile dal trend/volatilità recenti di
-# un benchmark (es. S&P 500) nel backtest, invece di assumere sempre "normal"
+# --- Market Condition Detection Parameters ---
+# Used to estimate bullish/bearish/volatile from the recent trend/volatility
+# of a benchmark (e.g. S&P 500) in the backtest, instead of always assuming "normal"
 MARKET_CONDITION_CONFIG = {
-    "lookback_days": 63,          # Finestra di osservazione (~3 mesi di trading)
-    "trend_threshold": 0.08,      # Oltre +/-8% nella finestra => bullish/bearish
-    "volatility_threshold": 0.30, # Volatilità annualizzata oltre il 30% => volatile
+    "lookback_days": 63,          # Observation window (~3 trading months)
+    "trend_threshold": 0.08,      # Beyond +/-8% over the window => bullish/bearish
+    "volatility_threshold": 0.30, # Annualized volatility above 30% => volatile
 }
 
-# --- Parametri Visualizzazione Report ---
+# --- Report Display Parameters ---
 REPORT_CONFIG = {
-    "top_n_allocation_pie": 40,      # Numero titoli da mostrare nella torta
-    "top_n_metrics_table": 40,       # Top N nella tabella metriche
+    "top_n_allocation_pie": 40,      # Number of stocks to show in the pie chart
+    "top_n_metrics_table": 40,       # Top N in the metrics table
 }
 
-# --- Tema Report HTML: "Midnight Terminal" ---
-# Palette scura stile terminale finanziario. Usata sia nel CSS del report
-# sia nei layout dei grafici Plotly, per un risultato coerente.
+# --- HTML Report Theme: "Midnight Terminal" ---
+# Dark palette styled like a financial terminal. Used both in the report's
+# CSS and in the Plotly chart layouts, for a consistent result.
 THEME_CONFIG = {
-    "bg_page": "#0a0e27",              # sfondo pagina, navy quasi nero
-    "bg_card": "#131a3a",              # sfondo card/pannelli
-    "bg_card_alt": "#0f1530",          # sfondo alternato (righe tabella, header)
-    "bg_elevated": "#1a2248",          # sfondo elementi in rilievo (hover, badge)
+    "bg_page": "#0a0e27",              # page background, near-black navy
+    "bg_card": "#131a3a",              # card/panel background
+    "bg_card_alt": "#0f1530",          # alternate background (table rows, headers)
+    "bg_elevated": "#1a2248",          # raised element background (hover, badges)
     "border": "rgba(255, 255, 255, 0.12)",
-    "grid": "rgba(255, 255, 255, 0.10)",   # griglie bianche sottili nei grafici
+    "grid": "rgba(255, 255, 255, 0.10)",   # thin white gridlines in charts
     "text_primary": "#e8ecf5",
     "text_secondary": "#8b93b0",
-    "accent": "#00d9ff",               # ciano elettrico
+    "accent": "#00d9ff",               # electric cyan
     "accent_soft": "rgba(0, 217, 255, 0.12)",
-    "accent_2": "#0080ff",             # blu elettrico scuro (hue più basso, non violaceo), per gradienti/secondo accento
+    "accent_2": "#0080ff",             # deep electric blue (lower hue, not violet-leaning), for gradients/secondary accent
     "positive": "#00ff9d",
     "positive_soft": "rgba(0, 255, 157, 0.12)",
     "negative": "#ff3860",
@@ -337,8 +337,8 @@ THEME_CONFIG = {
     "warning_soft": "rgba(255, 184, 77, 0.12)",
     "font_family": "'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
     "font_mono": "'JetBrains Mono', 'Consolas', monospace",
-    # Palette qualitativa per grafici a torta/barre categoriali (pensata per
-    # sfondo scuro: colori vividi, non pastello, a dominante blu/ciano)
+    # Qualitative palette for pie/bar categorical charts (designed for a dark
+    # background: vivid, non-pastel colors, with a blue/cyan bias)
     "qualitative_palette": [
         "#00d9ff", "#0080ff", "#00ff9d", "#ffb84d", "#ff3860",
         "#36c9d0", "#3399ff", "#5ee6a0", "#ffd166", "#ff6b9d",

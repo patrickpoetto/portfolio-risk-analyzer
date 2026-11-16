@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Script principale per l'analisi del portafoglio azionario
+Main script for stock portfolio analysis
 
-Utilizzo:
-    python main.py                          # Analisi portafoglio reale per capitale
-    python main.py --capital 50000          # Specifica capitale da investire
-    python main.py --full-universe          # Analizza tutti i titoli disponibili (esplorativo)
-    python main.py --weighted               # Analisi con pesi da portfolio_config.py
-    python main.py --period 2y              # Cambia periodo storico (1y, 2y, 5y, max)
-    python main.py --risk aggressive        # Suggerimenti per profilo aggressivo
-    python main.py --profile giorgio        # Usa capitale/rischio/periodo/holding da profiles/giorgio.json
-    python main.py --profile giorgio --capital 20000   # Profilo + override puntuale di un campo
+Usage:
+    python main.py                          # Real portfolio analysis for a given capital
+    python main.py --capital 50000          # Specify capital to invest
+    python main.py --full-universe          # Analyze all available tickers (exploratory)
+    python main.py --weighted               # Analysis using weights from portfolio_config.py
+    python main.py --period 2y              # Change the historical period (1y, 2y, 5y, max)
+    python main.py --risk aggressive        # Suggestions for an aggressive profile
+    python main.py --profile example        # Use capital/risk/period/holdings from profiles/example.json
+    python main.py --profile example --capital 20000   # Profile + one-off override of a single field
 """
 
 import argparse
@@ -56,135 +56,135 @@ import pandas as pd
 
 
 def classify_by_sectors(tickers: list, weights: Dict[str, float]) -> pd.DataFrame:
-    """Classifica i ticker per settore con i loro pesi"""
+    """Classifies tickers by sector with their weights"""
     sector_weights = {}
     total_weight = sum(weights.values()) if weights else len(tickers)
-    
+
     for sector, sector_tickers in SECTOR_CLASSIFICATION.items():
         weight = 0
         for ticker in sector_tickers:
             if ticker in tickers:
                 weight += weights.get(ticker, 1/len(tickers))
         sector_weights[sector] = weight / total_weight if total_weight > 0 else 0
-    
-    # Aggiungi categoria "Altri" per ticker non classificati
+
+    # Add an "Other" category for unclassified tickers
     classified_tickers = set()
     for sector_tickers in SECTOR_CLASSIFICATION.values():
         classified_tickers.update(sector_tickers)
-    
+
     other_weight = 0
     for ticker in tickers:
         if ticker not in classified_tickers:
             other_weight += weights.get(ticker, 1/len(tickers))
-    
+
     if other_weight > 0:
-        sector_weights["Altri"] = other_weight / total_weight
-    
-    df = pd.DataFrame(list(sector_weights.items()), columns=['Settore', 'weight'])
+        sector_weights["Other"] = other_weight / total_weight
+
+    df = pd.DataFrame(list(sector_weights.items()), columns=['Sector', 'weight'])
     return df[df['weight'] > 0].sort_values('weight', ascending=False)
 
 
 def classify_by_geography(tickers: list, weights: Dict[str, float]) -> pd.DataFrame:
-    """Classifica i ticker per area geografica con i loro pesi"""
+    """Classifies tickers by geographic area with their weights"""
     geo_weights = {}
     total_weight = sum(weights.values()) if weights else len(tickers)
-    
+
     for region, region_tickers in GEOGRAPHIC_CLASSIFICATION.items():
         weight = 0
         for ticker in region_tickers:
             if ticker in tickers:
                 weight += weights.get(ticker, 1/len(tickers))
         geo_weights[region] = weight / total_weight if total_weight > 0 else 0
-    
-    # Aggiungi categoria "Altri" per ticker non classificati
+
+    # Add an "Other" category for unclassified tickers
     classified_tickers = set()
     for region_tickers in GEOGRAPHIC_CLASSIFICATION.values():
         classified_tickers.update(region_tickers)
-    
+
     other_weight = 0
     for ticker in tickers:
         if ticker not in classified_tickers:
             other_weight += weights.get(ticker, 1/len(tickers))
-    
+
     if other_weight > 0:
-        geo_weights["Altri"] = other_weight / total_weight
-    
-    df = pd.DataFrame(list(geo_weights.items()), columns=['Regione', 'weight'])
+        geo_weights["Other"] = other_weight / total_weight
+
+    df = pd.DataFrame(list(geo_weights.items()), columns=['Region', 'weight'])
     return df[df['weight'] > 0].sort_values('weight', ascending=False)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Analisi completa del portafoglio azionario',
+        description='Full stock portfolio analysis',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
-Esempi:
-  python main.py                                    # Portafoglio reale per capitale default
-  python main.py --capital 50000                    # Portafoglio reale per 50k
-  python main.py --capital 5000 --risk aggressive   # 5k profilo aggressivo
-  python main.py --full-universe                    # Analizza tutti i {len(PORTFOLIO_TICKERS)} titoli (esplorativo)
-  python main.py --weighted                         # Usa pesi da EXAMPLE_HOLDINGS
-  python main.py --period 2y                        # Dati storici 2 anni
+Examples:
+  python main.py                                    # Real portfolio for the default capital
+  python main.py --capital 50000                    # Real portfolio for 50k
+  python main.py --capital 5000 --risk aggressive   # 5k, aggressive profile
+  python main.py --full-universe                    # Analyze all {len(PORTFOLIO_TICKERS)} tickers (exploratory)
+  python main.py --weighted                         # Use weights from EXAMPLE_HOLDINGS
+  python main.py --period 2y                        # 2 years of historical data
         """
     )
-    
+
     parser.add_argument(
         '--profile',
         default=None,
-        help=f"Nome profilo da profiles/<nome>.json (capitale, rischio, periodo, holding). "
-             f"Disponibili: {', '.join(list_profiles()) or 'nessuno'}"
+        help=f"Profile name from profiles/<name>.json (capital, risk, period, holdings). "
+             f"Available: {', '.join(list_profiles()) or 'none'}"
     )
 
-    # Default a None qui: dopo il parsing risolviamo con precedenza
-    # CLI esplicita > profilo (--profile) > DEFAULT_CONFIG, invece di
-    # forzare subito il valore di DEFAULT_CONFIG (che impedirebbe al
-    # profilo di fare da sorgente intermedia).
+    # Default to None here: after parsing we resolve with precedence
+    # explicit CLI > profile (--profile) > DEFAULT_CONFIG, instead of
+    # immediately forcing the DEFAULT_CONFIG value (which would prevent the
+    # profile from acting as an intermediate source).
     parser.add_argument(
         '--period',
         default=None,
         choices=['1y', '2y', '5y', 'max'],
-        help=f'Periodo storico per i dati (default: {DEFAULT_CONFIG["period"]})'
+        help=f'Historical period for the data (default: {DEFAULT_CONFIG["period"]})'
     )
 
     parser.add_argument(
         '--weighted',
         action='store_true',
-        help='Usa pesi da EXAMPLE_HOLDINGS (o dagli holding del profilo, se --profile è specificato)'
+        help='Use weights from EXAMPLE_HOLDINGS (or from the profile holdings, if --profile is given)'
     )
 
     parser.add_argument(
         '--risk',
         default=None,
         choices=list(RISK_PROFILES.keys()),
-        help=f'Profilo di rischio per suggerimenti allocazione (default: {DEFAULT_CONFIG["risk_profile"]})'
+        help=f'Risk profile for allocation suggestions (default: {DEFAULT_CONFIG["risk_profile"]})'
     )
 
     parser.add_argument(
         '--output',
         default=None,
-        help=f'Nome del file HTML di output (default: {DEFAULT_CONFIG["output_file"]})'
+        help=f'Output HTML file name (default: {DEFAULT_CONFIG["output_file"]})'
     )
 
     parser.add_argument(
         '--capital',
         type=float,
         default=None,
-        help=f'Capitale totale da investire in EUR (default: {DEFAULT_CONFIG["capital"]:.0f})'
+        help=f'Total capital to invest in EUR (default: {DEFAULT_CONFIG["capital"]:.0f})'
     )
 
     parser.add_argument(
         '--full-universe',
         action='store_true',
         dest='full_universe',
-        help='Analizza tutti i titoli disponibili (ignora capitale, modalità esplorativa)'
+        help='Analyze all available tickers (ignores capital, exploratory mode)'
     )
-    
+
     args = parser.parse_args()
 
-    # Carica il profilo (se richiesto) e risolve i parametri con precedenza
-    # CLI esplicita > profilo > DEFAULT_CONFIG. Così un profilo fornisce i
-    # valori "di base" per una persona, ma un flag esplicito sulla riga di
-    # comando può comunque sovrascrivere un singolo campo al volo.
+    # Load the profile (if requested) and resolve parameters with
+    # precedence explicit CLI > profile > DEFAULT_CONFIG. This way a
+    # profile provides "base" values for a person, but an explicit
+    # command-line flag can still override a single field on the fly.
     profile = None
     profile_holdings = {}
     if args.profile:
@@ -202,52 +202,53 @@ Esempi:
     if profile and profile.get('full_universe') and not args.full_universe:
         args.full_universe = True
 
-    # Se il profilo ha holding reali, usali automaticamente come pesi
-    # "attuali" per il confronto nel report (equivalente a --weighted con
-    # EXAMPLE_HOLDINGS), senza dover passare --weighted a mano ogni volta
+    # If the profile has real holdings, automatically use them as the
+    # "current" weights for the comparison in the report (equivalent to
+    # --weighted with EXAMPLE_HOLDINGS), without having to pass --weighted
+    # by hand every time
     if profile_holdings and not args.weighted:
         args.weighted = True
 
     holdings_source = profile_holdings if profile_holdings else EXAMPLE_HOLDINGS
 
-    # Determina modalità
-    mode = "ESPLORATIVA (Tutti i titoli)" if args.full_universe else f"PORTAFOGLIO REALE (€{args.capital:,.2f})"
+    # Determine the mode
+    mode = "EXPLORATORY (All tickers)" if args.full_universe else f"REAL PORTFOLIO (€{args.capital:,.2f})"
 
     print("=" * 80)
-    print("📊 ANALISI PORTAFOGLIO AZIONARIO")
+    print("📊 STOCK PORTFOLIO ANALYSIS")
     print("=" * 80)
     print(f"Timestamp: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
     if profile:
-        print(f"Profilo:   {profile['name']} (profiles/{args.profile}.json)")
-    print(f"Modalità: {mode}")
-    print(f"Profilo rischio: {args.risk}")
-    print(f"Periodo dati: {args.period}")
-    print(f"Titoli disponibili: {len(PORTFOLIO_TICKERS)}")
+        print(f"Profile:   {profile['name']} (profiles/{args.profile}.json)")
+    print(f"Mode: {mode}")
+    print(f"Risk profile: {args.risk}")
+    print(f"Data period: {args.period}")
+    print(f"Available tickers: {len(PORTFOLIO_TICKERS)}")
     print("=" * 80)
     print()
-    
+
     all_tickers = list(PORTFOLIO_TICKERS.keys())
-    
+
     # =============================================================================
-    # FASE 1: SCOUTING - Scarica dati di tutti i titoli per ranking
+    # PHASE 1: SCOUTING - Download data for all tickers for ranking
     # =============================================================================
-    print("📥 FASE 1: Scouting iniziale...")
+    print("📥 PHASE 1: Initial scouting...")
     print("-" * 80)
-    print("Scaricamento dati di tutti i titoli per valutazione e ranking...")
-    
+    print("Downloading data for all tickers for evaluation and ranking...")
+
     try:
         prices_all = fetch_historical_data(all_tickers, period=args.period)
     except Exception as e:
-        print(f"❌ Errore durante lo scaricamento dei dati: {e}")
+        print(f"❌ Error while downloading data: {e}")
         sys.exit(1)
-    
-    successful_tickers = list(prices_all.columns)
-    print(f"✅ Dati scaricati per {len(successful_tickers)}/{len(all_tickers)} ticker")
 
-    # Riserva una finestra finale "out-of-sample" (mai vista da scouting,
-    # selezione smart e ottimizzazione dei pesi): serve per un backtest onesto
-    # in FASE 7, invece di valutare la selezione sugli stessi dati con cui è
-    # stata scelta (circolare e sistematicamente troppo ottimistico)
+    successful_tickers = list(prices_all.columns)
+    print(f"✅ Data downloaded for {len(successful_tickers)}/{len(all_tickers)} tickers")
+
+    # Reserve a final "out-of-sample" window (never seen by scouting, smart
+    # selection or weight optimization): used for an honest backtest in
+    # PHASE 7, instead of evaluating the selection on the same data used to
+    # choose it (circular and systematically over-optimistic)
     prices_in_sample, prices_oos, oos_days = split_in_sample_out_of_sample(
         prices_all,
         BACKTEST_CONFIG['out_of_sample_ratio'],
@@ -258,44 +259,45 @@ Esempi:
     oos_start_date = None
     if oos_days > 0:
         oos_start_date = prices_oos.index[0]
-        print(f"📐 Split in-sample/out-of-sample: {len(prices_in_sample)} giorni per la selezione "
-              f"(fino al {prices_in_sample.index[-1].strftime('%d/%m/%Y')}), "
-              f"{oos_days} giorni di test riservati (dal {oos_start_date.strftime('%d/%m/%Y')})")
+        print(f"📐 In-sample/out-of-sample split: {len(prices_in_sample)} days for selection "
+              f"(up to {prices_in_sample.index[-1].strftime('%d/%m/%Y')}), "
+              f"{oos_days} days of test data held back (from {oos_start_date.strftime('%d/%m/%Y')})")
     else:
-        print("⚠️  Storico troppo corto per uno split out-of-sample: scouting, selezione e "
-              "backtest useranno tutti gli stessi dati (backtest solo in-sample, interpretalo con cautela)")
+        print("⚠️  History too short for an out-of-sample split: scouting, selection and "
+              "backtest will all use the same data (in-sample only backtest, interpret with caution)")
 
-    # Calcola metriche preliminari per tutti, SOLO sulla finestra in-sample
+    # Compute preliminary metrics for everyone, ONLY on the in-sample window
     weights_all_uniform = {t: 1.0/len(successful_tickers) for t in successful_tickers}
     metrics_all = calculate_metrics(prices_in_sample, weights_all_uniform)
     correlation_all = calculate_correlation_matrix(prices_in_sample)
 
-    print(f"✅ Metriche preliminari calcolate per tutti i {len(metrics_all)} ticker\n")
+    print(f"✅ Preliminary metrics computed for all {len(metrics_all)} tickers\n")
 
-    # Dati di valutazione fondamentale (P/E, PEG, P/B) attuali: informazione
-    # "di oggi", non derivata dallo storico prezzi, quindi calcolata una sola
-    # volta e riutilizzata sia per lo scouting che per l'analisi successiva
+    # Current fundamental valuation data (P/E, PEG, P/B): "today's"
+    # information, not derived from the price history, so it is computed
+    # once and reused both for scouting and for the later analysis
     try:
         valuation_df = calculate_valuation_scores(successful_tickers)
     except Exception as e:
-        print(f"⚠️  Errore nel recupero dati di valutazione: {str(e)[:100]}")
+        print(f"⚠️  Error fetching valuation data: {str(e)[:100]}")
         valuation_df = None
 
     metrics_all = merge_valuation(metrics_all, valuation_df)
-    
+
     # =============================================================================
-    # FASE 2: SELEZIONE SMART (se non full-universe)
+    # PHASE 2: SMART SELECTION (if not full-universe)
     # =============================================================================
     if not args.full_universe:
-        print(f"🎯 FASE 2: Selezione smart portafoglio per €{args.capital:,.2f}...")
+        print(f"🎯 PHASE 2: Smart portfolio selection for €{args.capital:,.2f}...")
         print("-" * 80)
 
-        # Numero di titoli: non più fasce di capitale hardcoded, ma il minimo
-        # tra due vincoli calcolati sui dati reali (select_portfolio):
-        #  1. statistico  → curva di diversificazione reale (Evans & Archer 1968 /
-        #     Elton & Gruber 1977): oltre quale N il rischio si riduce ormai poco
-        #  2. di capitale → quante posizioni da almeno min_position_size ci si
-        #     può permettere (usando ~85% del capitale, il resto stimato liquidità)
+        # Number of stocks: no more hardcoded capital brackets, instead the
+        # minimum of two constraints computed on real data (select_portfolio):
+        #  1. statistical → the real diversification curve (Evans & Archer
+        #     1968 / Elton & Gruber 1977): beyond which N risk reduction
+        #     becomes negligible
+        #  2. capital-based → how many positions of at least min_position_size
+        #     can be afforded (using ~85% of the capital, the rest estimated as cash)
         selected_tickers, selection_info = select_portfolio(
             metrics_all,
             correlation_all,
@@ -305,37 +307,37 @@ Esempi:
         )
 
         if not selected_tickers:
-            print(f"❌ Capitale (€{args.capital:,.2f}) insufficiente per costruire una posizione "
-                  f"minima di €{ALLOCATION_CONFIG['min_position_size']:,.2f}. "
-                  f"Aumenta --capital oppure abbassa 'min_position_size' in portfolio_config.py.")
+            print(f"❌ Capital (€{args.capital:,.2f}) is insufficient to build a minimum "
+                  f"position of €{ALLOCATION_CONFIG['min_position_size']:,.2f}. "
+                  f"Increase --capital or lower 'min_position_size' in portfolio_config.py.")
             sys.exit(1)
 
         n_stocks = selection_info['n_stocks']
-        print(f"Con capitale €{args.capital:,.2f}:")
-        print(f"  • Liquidità prevista: ~15%  →  Capitale investibile: ~€{args.capital * 0.85:,.2f}")
-        print(f"  • N° titoli 'ottimale' per diversificazione (minimo empirico "
-              f"della curva di rischio reale): {selection_info['statistically_optimal_n']}")
-        print(f"  • N° titoli sostenibili dal capitale (posizione min. €{ALLOCATION_CONFIG['min_position_size']:,.0f}): "
+        print(f"With capital €{args.capital:,.2f}:")
+        print(f"  • Expected cash reserve: ~15%  →  Investable capital: ~€{args.capital * 0.85:,.2f}")
+        print(f"  • 'Optimal' number of stocks for diversification (empirical minimum "
+              f"of the real risk curve): {selection_info['statistically_optimal_n']}")
+        print(f"  • Number of stocks affordable by the capital (min. position €{ALLOCATION_CONFIG['min_position_size']:,.0f}): "
               f"{selection_info['capital_affordable_n']}")
-        print(f"  • Vincolo più stringente: {selection_info['binding_constraint']} → N° titoli scelto: {n_stocks}")
-        print(f"  • Investimento medio: ~€{(args.capital * 0.85) / n_stocks:,.2f} per titolo\n")
+        print(f"  • Most binding constraint: {selection_info['binding_constraint']} → number of stocks chosen: {n_stocks}")
+        print(f"  • Average investment: ~€{(args.capital * 0.85) / n_stocks:,.2f} per stock\n")
 
-        print(f"✅ Titoli selezionati ({len(selected_tickers)}):")
+        print(f"✅ Selected stocks ({len(selected_tickers)}):")
         print(f"   {', '.join(selected_tickers[:10])}")
         if len(selected_tickers) > 10:
-            print(f"   ... e altri {len(selected_tickers) - 10}")
+            print(f"   ... and {len(selected_tickers) - 10} more")
         print()
 
-        # FILTRA dati per titoli selezionati
+        # FILTER data for the selected tickers
         tickers_to_analyze = selected_tickers
 
-        # Se il profilo chiede un tilt positivo su un settore, verifica che ci
-        # siano abbastanza titoli di quel settore da poter accogliere il peso
-        # target senza scontrarsi col cap "max peso per singolo titolo": un
-        # tilt al 9% su un settore con un solo titolo e cap 6% non è
-        # raggiungibile (un titolo solo non può pesare più del cap). Se serve,
-        # aggiungi altri candidati (per Sharpe) dello stesso settore finché
-        # n_titoli_settore * cap >= peso target del settore.
+        # If the profile requests a positive tilt on a sector, check that
+        # there are enough stocks in that sector to accommodate the target
+        # weight without hitting the "max weight per single stock" cap: a
+        # 9% tilt on a sector with a single stock and a 6% cap is not
+        # reachable (a single stock cannot exceed the cap). If needed, add
+        # more candidates (by Sharpe) from the same sector until
+        # n_sector_stocks * cap >= the sector's target weight.
         if profile and profile.get('sector_tilts'):
             max_weight_per_stock = ALLOCATION_CONFIG['max_weight_per_stock']
             for sector, delta in profile['sector_tilts'].items():
@@ -343,9 +345,10 @@ Esempi:
                     continue
 
                 sector_tickers_in_selection = [t for t in tickers_to_analyze if get_sector(t) == sector]
-                # stima grezza (pesi uniformi) del peso attuale del settore:
-                # la vera ottimizzazione avviene dopo, in FASE 6, ma qui serve
-                # solo per capire se il tilt richiesto è raggiungibile
+                # rough estimate (uniform weights) of the sector's current
+                # weight: the real optimization happens later, in PHASE 6,
+                # but here we only need to know whether the requested tilt
+                # is reachable
                 current_weight_est = len(sector_tickers_in_selection) / len(tickers_to_analyze)
                 target_weight_est = current_weight_est + delta
                 required_min_tickers = max(1, math.ceil(target_weight_est / max_weight_per_stock))
@@ -361,56 +364,57 @@ Esempi:
                     added = candidates['ticker'].head(n_to_add).tolist()
                     if added:
                         tickers_to_analyze.extend(added)
-                        print(f"ℹ️  Aggiunti {len(added)} titoli per '{sector}' (il tilt richiesto "
-                              f"supererebbe il cap {max_weight_per_stock:.0%}/titolo su un solo titolo): "
+                        print(f"ℹ️  Added {len(added)} stocks for '{sector}' (the requested tilt "
+                              f"would exceed the {max_weight_per_stock:.0%}/stock cap on a single stock): "
                               f"{', '.join(added)}")
                     if len(added) < n_to_add:
-                        print(f"⚠️  Solo {len(added)}/{n_to_add} candidati extra disponibili per '{sector}': "
-                              f"il tilt potrebbe restare parzialmente limitato dal cap per titolo")
+                        print(f"⚠️  Only {len(added)}/{n_to_add} extra candidates available for '{sector}': "
+                              f"the tilt may remain partially limited by the per-stock cap")
             print()
 
     else:
-        print("🌍 FASE 2: Modalità universo completo...")
+        print("🌍 PHASE 2: Full universe mode...")
         print("-" * 80)
-        print(f"Analizzando tutti i {len(successful_tickers)} titoli disponibili")
-        print("(Modalità esplorativa - ignora allocazione pratica)\n")
+        print(f"Analyzing all {len(successful_tickers)} available tickers")
+        print("(Exploratory mode - ignores practical allocation)\n")
 
         tickers_to_analyze = successful_tickers
         selection_info = None
-    
+
     # =============================================================================
-    # FASE 3: ANALISI APPROFONDITA - Solo su titoli selezionati
+    # PHASE 3: IN-DEPTH ANALYSIS - Selected tickers only
     # =============================================================================
-    print(f"📊 FASE 3: Analisi approfondita portafoglio ({len(tickers_to_analyze)} titoli)...")
+    print(f"📊 PHASE 3: In-depth portfolio analysis ({len(tickers_to_analyze)} tickers)...")
     print("-" * 80)
-    
-    # Filtra prezzi per titoli da analizzare (solo in-sample: le metriche
-    # "attuali" del portafoglio devono restare coerenti con i dati che hanno
-    # informato la selezione, senza contaminazione dalla finestra out-of-sample)
+
+    # Filter prices for the tickers to analyze (in-sample only: the
+    # portfolio's "current" metrics must stay consistent with the data that
+    # informed the selection, without contamination from the out-of-sample
+    # window)
     prices = prices_in_sample[tickers_to_analyze]
-    
-    # Determina i pesi (da profilo se --profile con holding, altrimenti da EXAMPLE_HOLDINGS)
+
+    # Determine the weights (from the profile if --profile with holdings, otherwise from EXAMPLE_HOLDINGS)
     if args.weighted and holdings_source:
         weights = {k: v for k, v in holdings_source.items() if k in tickers_to_analyze}
         if not weights:
-            print("⚠️  Nessun holding valido tra i titoli selezionati, uso pesi uniformi")
+            print("⚠️  No valid holdings among the selected tickers, using uniform weights")
             weights = {t: 1.0 for t in tickers_to_analyze}
     else:
         weights = {t: 1.0 for t in tickers_to_analyze}
-        print("ℹ️  Uso pesi uniformi per il portafoglio")
-    
+        print("ℹ️  Using uniform weights for the portfolio")
+
     total = sum(weights.values())
     normalized_weights = {k: v/total for k, v in weights.items()}
-    
-    # Calcola metriche del portafoglio
+
+    # Compute portfolio metrics
     metrics = calculate_metrics(prices, normalized_weights)
     metrics = merge_valuation(metrics, valuation_df)
     correlation_matrix = calculate_correlation_matrix(prices)
     portfolio_metrics = calculate_portfolio_metrics(prices, normalized_weights)
 
-    # Calendario prossimi utili/dividendi: solo per i titoli effettivamente
-    # in portafoglio (non l'intero universo), interrogato qui perché è un
-    # endpoint separato da .info e tickers_to_analyze è già definitivo
+    # Upcoming earnings/dividend calendar: only for the tickers actually in
+    # the portfolio (not the whole universe), queried here because it's a
+    # separate endpoint from .info and tickers_to_analyze is now final
     calendar_df = fetch_calendar_events(tickers_to_analyze)
 
     earnings_cols = ['ticker', 'trailing_eps', 'forward_eps', 'earnings_growth', 'profit_margin', 'currency']
@@ -421,11 +425,12 @@ Esempi:
     )
     earnings_df = earnings_df.sort_values('days_to_earnings', na_position='last')
 
-    # Rendimento da dividendo calcolato da noi (dividend_rate / ultimo prezzo
-    # reale disponibile su tutto lo storico scaricato, non solo in-sample),
-    # invece del campo 'dividendYield' di Yahoo: a seconda del titolo/versione
-    # dell'API è espresso in modo incoerente (frazione 0-1 oppure già in punti
-    # percentuali), un rischio concreto di sbagliare l'ordine di grandezza
+    # Dividend yield computed by us (dividend_rate / the latest real price
+    # available over the whole downloaded history, not just in-sample),
+    # instead of Yahoo's 'dividendYield' field: depending on the
+    # stock/API version it is expressed inconsistently (a 0-1 fraction or
+    # already in percentage points), a real risk of getting the order of
+    # magnitude wrong
     last_price = prices_all[tickers_to_analyze].iloc[-1]
     dividend_cols = ['ticker', 'dividend_rate', 'payout_ratio', 'currency']
     dividend_cols = [c for c in dividend_cols if c in metrics.columns]
@@ -434,68 +439,68 @@ Esempi:
         on='ticker', how='left'
     )
     dividend_df['last_price'] = dividend_df['ticker'].map(last_price)
-    # dividend_rate è già in pence per i titoli 'GBp'/'GBX' (corretto alla
-    # fonte in valuation.fetch_valuation_metrics), quindi coerente in scala
-    # con last_price qui sotto
+    # dividend_rate is already in pence for 'GBp'/'GBX' stocks (corrected at
+    # the source in valuation.fetch_valuation_metrics), so it is consistent
+    # in scale with last_price below
     dividend_df['dividend_yield'] = dividend_df['dividend_rate'] / dividend_df['last_price']
     dividend_df.loc[dividend_df['dividend_rate'].isna() | (dividend_df['dividend_rate'] == 0),
                      'dividend_yield'] = None
     dividend_df = dividend_df.sort_values('dividend_yield', ascending=False, na_position='last')
 
-    print(f"✅ Analisi completata per portafoglio di {len(tickers_to_analyze)} titoli")
-    print(f"\nMetriche portafoglio:")
-    print(f"  • Rendimento annuale:  {portfolio_metrics['annual_return']:>8.2%}")
-    print(f"  • Volatilità annuale:  {portfolio_metrics['annual_volatility']:>8.2%}")
-    print(f"  • Sharpe Ratio:        {portfolio_metrics['sharpe_ratio']:>8.2f}")
-    print(f"  • Max Drawdown:        {portfolio_metrics['max_drawdown']:>8.2%}")
+    print(f"✅ Analysis complete for a portfolio of {len(tickers_to_analyze)} stocks")
+    print(f"\nPortfolio metrics:")
+    print(f"  • Annual return:     {portfolio_metrics['annual_return']:>8.2%}")
+    print(f"  • Annual volatility: {portfolio_metrics['annual_volatility']:>8.2%}")
+    print(f"  • Sharpe Ratio:      {portfolio_metrics['sharpe_ratio']:>8.2f}")
+    print(f"  • Max Drawdown:      {portfolio_metrics['max_drawdown']:>8.2%}")
     print()
-    
+
     # =============================================================================
-    # FASE 4: DIVERSIFICAZIONE
+    # PHASE 4: DIVERSIFICATION
     # =============================================================================
-    print("🎯 FASE 4: Analisi diversificazione...")
+    print("🎯 PHASE 4: Diversification analysis...")
     print("-" * 80)
-    
+
     diversification_score = get_diversification_score(correlation_matrix, normalized_weights)
     concentration_info = calculate_concentration(normalized_weights)
 
-    print(f"Score diversificazione: {diversification_score:.1f}/100")
-    print(f"Numero effettivo di titoli (Effective N): {concentration_info['effective_n']:.1f} "
-          f"su {len(tickers_to_analyze)} in portafoglio")
+    print(f"Diversification score: {diversification_score:.1f}/100")
+    print(f"Effective number of stocks (Effective N): {concentration_info['effective_n']:.1f} "
+          f"out of {len(tickers_to_analyze)} in the portfolio")
 
     if diversification_score > 70:
-        print("✅ Eccellente diversificazione!")
+        print("✅ Excellent diversification!")
     elif diversification_score > 50:
-        print("⚠️  Diversificazione moderata")
+        print("⚠️  Moderate diversification")
     else:
-        print("❌ Bassa diversificazione")
+        print("❌ Low diversification")
     print()
-    
+
     # =============================================================================
-    # FASE 5: BREAKDOWN SETTORIALE E GEOGRAFICO
+    # PHASE 5: SECTOR AND GEOGRAPHIC BREAKDOWN
     # =============================================================================
-    print("🏭 FASE 5: Breakdown settoriale e geografico...")
+    print("🏭 PHASE 5: Sector and geographic breakdown...")
     print("-" * 80)
-    
+
     sector_breakdown = classify_by_sectors(tickers_to_analyze, normalized_weights)
     geographic_breakdown = classify_by_geography(tickers_to_analyze, normalized_weights)
-    
-    print("Top 5 settori:")
+
+    print("Top 5 sectors:")
     for _, row in sector_breakdown.head(5).iterrows():
-        print(f"  • {row['Settore']:.<30} {row['weight']:>6.1%}")
+        print(f"  • {row['Sector']:.<30} {row['weight']:>6.1%}")
     print()
-    
-    print("Distribuzione geografica:")
+
+    print("Geographic distribution:")
     for _, row in geographic_breakdown.iterrows():
-        print(f"  • {row['Regione']:.<30} {row['weight']:>6.1%}")
+        print(f"  • {row['Region']:.<30} {row['weight']:>6.1%}")
     print()
-    
+
     # =============================================================================
-    # FASE 6: OTTIMIZZAZIONE ALLOCAZIONE (mean-variance vera, con shrinkage)
+    # PHASE 6: ALLOCATION OPTIMIZATION (real mean-variance, with shrinkage)
     # =============================================================================
-    print("💡 FASE 6: Ottimizzazione mean-variance (Markowitz, SLSQP)...")
+    print("💡 PHASE 6: Mean-variance optimization (Markowitz, SLSQP)...")
     print("-" * 80)
-    print(f"Profilo di rischio: {args.risk}")
+    print(f"Risk profile: {args.risk}")
 
     opt_weights_series, opt_info = optimize_portfolio(
         metrics,
@@ -509,40 +514,40 @@ Esempi:
 
     if not opt_weights_series.empty:
         suggested_weights = opt_weights_series.to_dict()
-        print(f"Obiettivo: {opt_info['objective']}  |  shrinkage rendimenti: "
-              f"{opt_info['return_shrinkage']:.0%}  |  shrinkage covarianza: {opt_info['cov_shrinkage']:.0%}")
+        print(f"Objective: {opt_info['objective']}  |  return shrinkage: "
+              f"{opt_info['return_shrinkage']:.0%}  |  covariance shrinkage: {opt_info['cov_shrinkage']:.0%}")
 
-        # Tilt settoriale manuale da profilo (preferenza personale dichiarata
-        # dall'investitore, applicata dopo l'ottimizzazione)
+        # Manual sector tilt from the profile (personal preference stated
+        # by the investor, applied after optimization)
         if profile and profile.get('sector_tilts'):
             ticker_sector_map = {t: get_sector(t) for t in suggested_weights}
             suggested_weights = apply_sector_tilt(suggested_weights, ticker_sector_map, profile['sector_tilts'])
-            print(f"\n📐 Tilt settoriale applicato (da profilo):")
+            print(f"\n📐 Sector tilt applied (from profile):")
             for sector, delta in profile['sector_tilts'].items():
                 print(f"  • {sector:.<40} {delta:+.1%}")
 
-        print(f"\nTop 10 pesi ottimizzati:")
+        print(f"\nTop 10 optimized weights:")
         for ticker, w in sorted(suggested_weights.items(), key=lambda x: -x[1])[:10]:
             print(f"  • {ticker:.<10} {w:>6.1%}")
     else:
         suggested_weights = {}
-        print("⚠️  Impossibile calcolare allocazione ottimizzata")
+        print("⚠️  Unable to compute an optimized allocation")
 
-    # La colonna 'weight' di `metrics` era finora il placeholder uniforme
-    # (1/N) usato in FASE 3 solo per calcolare le metriche "attuali" del
-    # portafoglio: nella tabella dettaglio del report risultava quindi
-    # identica per ogni titolo, un artefatto interno privo di significato
-    # per chi legge. La aggiorniamo con l'allocazione ottimizzata (post
-    # tilt settoriale) così riflette il peso realmente suggerito.
+    # The 'weight' column of `metrics` was, until now, the uniform
+    # placeholder (1/N) used in PHASE 3 only to compute the portfolio's
+    # "current" metrics: in the detailed report table it therefore looked
+    # identical for every stock, an internal artifact with no meaning for
+    # the reader. We update it with the optimized allocation (after the
+    # sector tilt) so it reflects the actually suggested weight.
     if suggested_weights:
         metrics['weight'] = metrics['ticker'].map(suggested_weights).fillna(0.0)
 
     print()
-    
+
     # =============================================================================
-    # FASE 7: BACKTEST STORICO - Su portafoglio reale
+    # PHASE 7: HISTORICAL BACKTEST - On the real portfolio
     # =============================================================================
-    print(f"📈 FASE 7: Backtest storico ({args.period})...")
+    print(f"📈 PHASE 7: Historical backtest ({args.period})...")
     print("-" * 80)
 
     backtest_results = None
@@ -550,31 +555,31 @@ Esempi:
     backtest_stats_oos = None
 
     try:
-        # Riusa i prezzi già scaricati in FASE 1 (in-sample + out-of-sample)
-        # invece di un secondo download separato: elimina una chiamata di
-        # rete ridondante e garantisce che il backtest copra esattamente lo
-        # stesso periodo di --period, includendo la finestra out-of-sample
+        # Reuse the prices already downloaded in PHASE 1 (in-sample +
+        # out-of-sample) instead of a second separate download: avoids a
+        # redundant network call and guarantees the backtest covers exactly
+        # the same period as --period, including the out-of-sample window
         prices_backtest = prices_all[tickers_to_analyze]
 
         if not prices_backtest.empty:
             backtest_results, backtest_stats, backtest_stats_oos = run_backtest(
                 prices_backtest, suggested_weights, period=args.period, oos_days=oos_days
             )
-            print("✅ Backtest completato")
-            print(f"   Performance portafoglio (periodo intero, include dati in-sample): "
-                  f"{backtest_stats.get('Portafoglio', {}).get('total_return', 0):+.1%}")
+            print("✅ Backtest complete")
+            print(f"   Portfolio performance (whole period, includes in-sample data): "
+                  f"{backtest_stats.get('Portfolio', {}).get('total_return', 0):+.1%}")
             if backtest_stats_oos:
-                print(f"   Performance portafoglio (SOLO out-of-sample, test onesto): "
-                      f"{backtest_stats_oos.get('Portafoglio', {}).get('total_return', 0):+.1%}")
+                print(f"   Portfolio performance (OUT-OF-SAMPLE ONLY, honest test): "
+                      f"{backtest_stats_oos.get('Portfolio', {}).get('total_return', 0):+.1%}")
         else:
-            print(f"⚠️  Dati insufficienti per il backtest")
+            print(f"⚠️  Insufficient data for the backtest")
     except Exception as e:
-        print(f"⚠️  Errore backtest: {str(e)[:100]}")
+        print(f"⚠️  Backtest error: {str(e)[:100]}")
 
     # =============================================================================
-    # FASE 7B: VALIDAZIONE STATISTICA (walk-forward multi-fold + bootstrap CI)
+    # PHASE 7B: STATISTICAL VALIDATION (multi-fold walk-forward + bootstrap CI)
     # =============================================================================
-    print("\n🔬 FASE 7B: Validazione walk-forward (multi-fold, con costi di transazione)...")
+    print("\n🔬 PHASE 7B: Walk-forward validation (multi-fold, with transaction costs)...")
     print("-" * 80)
 
     walk_forward_stats = None
@@ -594,27 +599,27 @@ Esempi:
                 name: summarize_strategy_returns(ret, RISK_FREE_RATE)
                 for name, ret in wf_result['returns'].items()
             }
-            print(f"✅ Validazione completata su {len(wf_result['folds'])} fold "
-                  f"(nessun fold si sovrappone al training che lo precede)")
+            print(f"✅ Validation complete over {len(wf_result['folds'])} folds "
+                  f"(no fold overlaps with the training data preceding it)")
             for name, stats in walk_forward_stats.items():
                 if not stats:
                     continue
                 print(f"   {name:.<25} Sharpe {stats['sharpe_ratio']:>5.2f} "
                       f"[CI90% {stats['sharpe_ci_low']:.2f}, {stats['sharpe_ci_high']:.2f}]  "
-                      f"Rend.tot {stats['total_return']:+.1%}")
+                      f"Total ret. {stats['total_return']:+.1%}")
         else:
-            print("⚠️  Dati insufficienti per la validazione walk-forward (serve uno storico più lungo)")
+            print("⚠️  Insufficient data for walk-forward validation (a longer history is needed)")
     except Exception as e:
-        print(f"⚠️  Errore validazione walk-forward: {str(e)[:150]}")
+        print(f"⚠️  Walk-forward validation error: {str(e)[:150]}")
 
     # =============================================================================
-    # FASE 8: COMPONENTE LIQUIDITÀ
+    # PHASE 8: CASH COMPONENT
     # =============================================================================
-    print("\n💰 FASE 8: Calcolo componente liquidità...")
+    print("\n💰 PHASE 8: Computing the cash component...")
     print("-" * 80)
 
     market_condition = infer_market_condition(backtest_results)
-    print(f"Condizione di mercato rilevata: {market_condition}")
+    print(f"Detected market condition: {market_condition}")
 
     cash_allocation = calculate_smart_cash_allocation(
         metrics,
@@ -622,13 +627,13 @@ Esempi:
         market_condition=market_condition
     )
 
-    print(f"Liquidità consigliata: {cash_allocation:.1%}")
-    print(f"Allocazione azioni:    {1-cash_allocation:.1%}")
+    print(f"Recommended cash:  {cash_allocation:.1%}")
+    print(f"Equity allocation: {1-cash_allocation:.1%}")
 
     # =============================================================================
-    # FASE 8B: RISCHIO DI CAMBIO (disclosure, capitale in EUR)
+    # PHASE 8B: CURRENCY RISK (disclosure, capital in EUR)
     # =============================================================================
-    print("\n💱 FASE 8B: Stima rischio di cambio (base EUR)...")
+    print("\n💱 PHASE 8B: Currency risk estimate (EUR base)...")
     print("-" * 80)
 
     currency_risk_info = None
@@ -636,28 +641,28 @@ Esempi:
         ticker_currencies = dict(zip(valuation_df['ticker'], valuation_df['currency'])) if valuation_df is not None else {}
         currency_risk_info = estimate_currency_risk(suggested_weights, ticker_currencies, base_currency="EUR", period=args.period)
         non_base = currency_risk_info['non_base_exposure']
-        print(f"Esposizione a valute diverse da EUR: {non_base:.1%}")
+        print(f"Exposure to non-EUR currencies: {non_base:.1%}")
         for cur, exp in sorted(currency_risk_info['exposure_by_currency'].items(), key=lambda x: -x[1]):
             if cur == 'EUR':
                 continue
             vol = currency_risk_info['fx_volatility_by_currency'].get(cur)
-            vol_str = f"vol FX annua {vol:.1%}" if vol is not None else "vol FX n/d"
-            print(f"  • {cur}: {exp:.1%} del portafoglio ({vol_str})")
-        print(f"Contributo di volatilità da cambio (stima approssimata, non copre correlazioni): "
+            vol_str = f"annual FX vol {vol:.1%}" if vol is not None else "FX vol n/a"
+            print(f"  • {cur}: {exp:.1%} of the portfolio ({vol_str})")
+        print(f"Volatility contribution from FX (rough estimate, does not cover correlations): "
               f"{currency_risk_info['estimated_fx_volatility_contribution']:.2%}")
     except Exception as e:
-        print(f"⚠️  Errore stima rischio di cambio: {str(e)[:100]}")
+        print(f"⚠️  Error estimating currency risk: {str(e)[:100]}")
 
     # =============================================================================
-    # FASE 9: ALLOCAZIONE PRATICA (solo se non full-universe)
+    # PHASE 9: PRACTICAL ALLOCATION (only if not full-universe)
     # =============================================================================
     practical_allocation_df = None
     practical_allocation_info = None
-    
+
     if not args.full_universe:
-        print(f"\n💼 FASE 9: Allocazione pratica per €{args.capital:,.2f}...")
+        print(f"\n💼 PHASE 9: Practical allocation for €{args.capital:,.2f}...")
         print("-" * 80)
-        
+
         try:
             if suggested_weights and not metrics.empty:
                 practical_allocation_df, practical_allocation_info = calculate_practical_allocation(
@@ -668,26 +673,27 @@ Esempi:
                     cash_allocation=cash_allocation,
                     target_risk=args.risk,
                     min_position_size=ALLOCATION_CONFIG['min_position_size'],
-                    # Riusa la stessa selezione della FASE 2: garantisce che
-                    # l'allocazione pratica sia sugli stessi titoli analizzati
-                    # nel resto del report (correlazioni, backtest, ecc.)
+                    # Reuse the same selection from PHASE 2: guarantees that
+                    # the practical allocation covers the same stocks
+                    # analyzed in the rest of the report (correlations,
+                    # backtest, etc.)
                     selected_tickers=tickers_to_analyze
                 )
-                print(f"✅ Allocazione pratica calcolata con cifre esatte")
+                print(f"✅ Practical allocation computed with exact amounts")
             else:
-                print("⚠️  Impossibile calcolare allocazione pratica")
+                print("⚠️  Unable to compute a practical allocation")
         except Exception as e:
-            print(f"⚠️  Errore: {str(e)[:100]}")
+            print(f"⚠️  Error: {str(e)[:100]}")
     else:
-        print(f"\nℹ️  FASE 9: Allocazione pratica saltata (modalità full-universe)")
-    
+        print(f"\nℹ️  PHASE 9: Practical allocation skipped (full-universe mode)")
+
     # =============================================================================
-    # FASE 10: GENERAZIONE REPORT HTML
+    # PHASE 10: HTML REPORT GENERATION
     # =============================================================================
     final_phase = "9" if args.full_universe else "10"
-    print(f"\n🎨 FASE {final_phase}: Generazione report HTML...")
+    print(f"\n🎨 PHASE {final_phase}: Generating HTML report...")
     print("-" * 80)
-    
+
     try:
         output_path = generate_html_report(
             metrics=metrics,
@@ -715,31 +721,31 @@ Esempi:
             total_capital=args.capital if not args.full_universe else None,
             output_file=args.output
         )
-        
-        print(f"✅ Report HTML generato: {output_path}")
-        print(f"   Apri il file nel browser per visualizzare i grafici interattivi!")
-        
+
+        print(f"✅ HTML report generated: {output_path}")
+        print(f"   Open the file in your browser to view the interactive charts!")
+
     except Exception as e:
-        print(f"❌ Errore nella generazione del report: {e}")
+        print(f"❌ Error generating the report: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
-    
+
     print()
     print("=" * 80)
-    print("🎉 ANALISI COMPLETATA CON SUCCESSO!")
+    print("🎉 ANALYSIS COMPLETED SUCCESSFULLY!")
     print("=" * 80)
-    
-    # Riepilogo finale
-    print("\n📋 RIEPILOGO:")
-    print(f"  • Modalità: {mode}")
-    print(f"  • Titoli nel portafoglio: {len(tickers_to_analyze)}")
-    print(f"  • Rendimento portafoglio: {portfolio_metrics['annual_return']:.2%}")
+
+    # Final summary
+    print("\n📋 SUMMARY:")
+    print(f"  • Mode: {mode}")
+    print(f"  • Stocks in the portfolio: {len(tickers_to_analyze)}")
+    print(f"  • Portfolio return: {portfolio_metrics['annual_return']:.2%}")
     print(f"  • Sharpe Ratio: {portfolio_metrics['sharpe_ratio']:.2f}")
-    print(f"  • Diversificazione: {diversification_score:.1f}/100")
+    print(f"  • Diversification: {diversification_score:.1f}/100")
     if not args.full_universe:
-        print(f"  • Capitale allocato: €{args.capital:,.2f}")
-    print(f"  • Report salvato in: {args.output}")
+        print(f"  • Capital allocated: €{args.capital:,.2f}")
+    print(f"  • Report saved to: {args.output}")
     print()
 
 

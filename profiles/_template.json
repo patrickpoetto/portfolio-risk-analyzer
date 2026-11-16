@@ -1,9 +1,9 @@
 {
-  "name": "Nome Persona",
+  "name": "Example Person",
   "capital": 50000,
   "risk_profile": "moderate",
   "period": "5y",
-  "output_file": "report_nome.html",
+  "output_file": "report_name.html",
   "full_universe": false,
   "holdings": {
     "AAPL": 5000,

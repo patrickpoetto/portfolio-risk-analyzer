@@ -53,7 +53,8 @@ holdings/
 logs/
 profiles/*.json
 !profiles/_template.json
-!profiles/esempio.json
+!profiles/example.json
 
 *.csv
 *.xlsx
+!sample_data/*.csv

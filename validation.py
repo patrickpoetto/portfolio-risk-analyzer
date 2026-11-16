@@ -1,13 +1,14 @@
 """
-Modulo di validazione statistica: backtest walk-forward multi-fold,
-intervalli di confidenza bootstrap, confronto con benchmark.
+Statistical validation module: multi-fold walk-forward backtest, bootstrap
+confidence intervals, benchmark comparison.
 
-Un singolo split in-sample/out-of-sample (introdotto in una fase precedente
-del progetto) è già un passo avanti rispetto a nessuno split, ma resta un
-solo campione: potrebbe essere per caso favorevole o sfavorevole. Qui si
-ripete la validazione su più finestre consecutive (walk-forward) e si
-quantifica l'incertezza statistica della performance osservata (bootstrap),
-invece di riportare un singolo numero come se fosse certo.
+A single in-sample/out-of-sample split (introduced in an earlier phase of
+the project) is already a step up from no split at all, but it is still a
+single sample: it could happen to be favorable or unfavorable by chance.
+Here the validation is repeated over several consecutive windows
+(walk-forward) and the statistical uncertainty of the observed performance
+is quantified (bootstrap), instead of reporting a single number as if it
+were certain.
 """
 
 import numpy as np
@@ -31,25 +32,25 @@ def walk_forward_backtest(prices: pd.DataFrame,
                          min_train_days: int = 252,
                          cost_bps: float = 10.0) -> Dict:
     """
-    Backtest walk-forward multi-fold: la finestra di test scorre in avanti
-    nel tempo, ciascuna preceduta da una finestra di training espandibile
-    (expanding window, dall'inizio dei dati fino all'inizio del test). I pesi
-    (portafoglio ottimizzato + benchmark equal-weight e minimum-variance
-    "naive" senza shrinkage) sono stimati SOLO su dati di training e poi
-    applicati, fissi, al periodo di test immediatamente successivo — mai
-    visto durante la stima, nessun look-ahead.
+    Multi-fold walk-forward backtest: the test window slides forward in
+    time, each one preceded by an expanding training window (from the start
+    of the data up to the start of the test). The weights (optimized
+    portfolio + equal-weight and "naive" minimum-variance benchmarks
+    without shrinkage) are estimated ONLY on training data and then applied,
+    fixed, to the immediately following test period — never seen during
+    estimation, no look-ahead.
 
-    Un costo di transazione (`cost_bps` punti base sul turnover) viene
-    applicato ad ogni ribilanciamento tra un fold e il successivo.
+    A transaction cost (`cost_bps` basis points on turnover) is applied at
+    every rebalancing between one fold and the next.
 
-    Nota di onestà metodologica: qui si re-ottimizzano i PESI ad ogni fold,
-    ma l'universo di titoli candidati resta fisso (non si ri-fa lo screening/
-    selezione titoli ad ogni fold). Un walk-forward completo rifarebbe anche
-    la selezione dei titoli ad ogni finestra; qui è stato scelto un
-    compromesso pragmatico per i tempi di calcolo.
+    Methodological honesty note: here the WEIGHTS are re-optimized at every
+    fold, but the universe of candidate stocks stays fixed (stock
+    screening/selection is not redone at every fold). A full walk-forward
+    would also redo stock selection at every window; here a pragmatic
+    compromise was chosen for computation time.
     """
     total_days = len(prices)
-    strategy_names = ['Ottimizzato', 'Equal-Weight', 'Min-Varianza (naive)']
+    strategy_names = ['Optimized', 'Equal-Weight', 'Min-Variance (naive)']
     fold_returns = {name: [] for name in strategy_names}
     fold_details = []
     prev_weights = {name: None for name in strategy_names}
@@ -88,16 +89,16 @@ def walk_forward_backtest(prices: pd.DataFrame,
         valid_tickers = train_metrics['ticker'].tolist()
         train_corr = calculate_correlation_matrix(train_prices[valid_tickers])
 
-        # Strategia principale: shrinkage + vera ottimizzazione
+        # Main strategy: shrinkage + real optimization
         opt_weights, _ = optimize_portfolio(
             train_metrics, train_corr, valid_tickers, risk_free_rate, max_weight, target_risk
         )
 
-        # Benchmark 1: equal-weight (diversificazione naive, nessuna stima)
+        # Benchmark 1: equal-weight (naive diversification, no estimation)
         eq_weights = pd.Series(1.0 / len(valid_tickers), index=valid_tickers)
 
-        # Benchmark 2: minimum-variance sulla covarianza CAMPIONARIA grezza
-        # (senza shrinkage), per isolare quanto contribuisce lo shrinkage
+        # Benchmark 2: minimum-variance on the RAW sample covariance
+        # (no shrinkage), to isolate how much shrinkage contributes
         vols = train_metrics.set_index('ticker').loc[valid_tickers, 'annual_volatility']
         naive_cov = train_corr.mul(vols, axis=0).mul(vols, axis=1)
         minvar_weights = mean_variance_optimize(
@@ -106,9 +107,9 @@ def walk_forward_backtest(prices: pd.DataFrame,
         )
 
         strategy_weights = {
-            'Ottimizzato': opt_weights,
+            'Optimized': opt_weights,
             'Equal-Weight': eq_weights,
-            'Min-Varianza (naive)': minvar_weights,
+            'Min-Variance (naive)': minvar_weights,
         }
 
         test_returns = calculate_returns(test_prices[valid_tickers]).fillna(0)
@@ -121,7 +122,7 @@ def walk_forward_backtest(prices: pd.DataFrame,
                 turnover = (w.reindex(all_idx, fill_value=0) -
                           prev_weights[name].reindex(all_idx, fill_value=0)).abs().sum()
             else:
-                turnover = 1.0  # costruzione iniziale del portafoglio da zero
+                turnover = 1.0  # initial portfolio construction from scratch
 
             cost = turnover * (cost_bps / 10000.0)
             if len(port_ret) > 0:
@@ -154,13 +155,13 @@ def bootstrap_sharpe_ci(daily_returns: pd.Series,
                        block_size: int = None,
                        seed: int = 42) -> Tuple[float, float, float]:
     """
-    Intervallo di confidenza bootstrap A BLOCCHI (non i.i.d., per rispettare
-    l'autocorrelazione seriale tipica dei rendimenti finanziari) sullo Sharpe
-    Ratio realizzato. Una singola stima puntuale non dice se la performance
-    osservata sia statisticamente distinguibile dal rumore campionario.
+    BLOCK bootstrap confidence interval (not i.i.d., to respect the serial
+    autocorrelation typical of financial returns) on the realized Sharpe
+    Ratio. A single point estimate does not tell you whether the observed
+    performance is statistically distinguishable from sampling noise.
 
     Returns:
-        (sharpe puntuale, limite inferiore CI, limite superiore CI)
+        (point Sharpe, CI lower bound, CI upper bound)
     """
     returns = daily_returns.dropna().values
     n = len(returns)
@@ -193,7 +194,7 @@ def bootstrap_sharpe_ci(daily_returns: pd.Series,
 
 
 def summarize_strategy_returns(daily_returns: pd.Series, risk_free_rate: float) -> Dict:
-    """Statistiche aggregate (rendimento, volatilità, Sharpe+CI, drawdown) su una serie di rendimenti giornalieri."""
+    """Aggregate statistics (return, volatility, Sharpe+CI, drawdown) over a series of daily returns."""
     returns = daily_returns.dropna()
     if len(returns) < 5:
         return {}

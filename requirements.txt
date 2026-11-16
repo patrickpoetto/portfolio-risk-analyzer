@@ -1,4 +1,4 @@
-# Dipendenze per il progetto di analisi portafoglio
+# Dependencies for the portfolio analysis project
 
 # Core data libraries
 yfinance>=0.2.36
@@ -12,6 +12,6 @@ plotly>=5.18.0
 # Optional but recommended
 python-dateutil>=2.8.2
 
-# Monitoraggio live del portafoglio + bot Telegram
+# Live portfolio monitoring + Telegram bot
 python-telegram-bot[job-queue]>=22.0
 python-dotenv>=1.0.0

@@ -1,10 +1,10 @@
 """
-Caricamento profili investitore da file JSON (cartella profiles/).
+Loads investor profiles from JSON files (profiles/ folder).
 
-Permette di generare report per persone diverse (capitale, profilo di
-rischio, periodo, holding attuali) senza scrivere nulla direttamente in
-portfolio_config.py e senza modificare il codice ad ogni nuova persona:
-basta aggiungere un nuovo file profiles/<nome>.json.
+Allows generating reports for different people (capital, risk profile,
+period, current holdings) without writing anything directly into
+portfolio_config.py and without touching the code for each new person:
+just add a new profiles/<name>.json file.
 """
 
 import json
@@ -16,7 +16,7 @@ PROFILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profile
 
 
 def list_profiles() -> List[str]:
-    """Elenca i profili disponibili (nomi file .json in profiles/, esclusi quelli che iniziano con '_')."""
+    """Lists the available profiles (.json file names in profiles/, excluding those starting with '_')."""
     if not os.path.isdir(PROFILES_DIR):
         return []
     return sorted(
@@ -27,55 +27,55 @@ def list_profiles() -> List[str]:
 
 def load_profile(name: str) -> Dict:
     """
-    Carica un profilo da profiles/<name>.json. I campi non specificati nel
-    JSON vengono completati con i default di DEFAULT_CONFIG (portfolio_config.py).
+    Loads a profile from profiles/<name>.json. Fields not specified in the
+    JSON are filled in with the defaults from DEFAULT_CONFIG (portfolio_config.py).
 
-    Schema atteso (tutti i campi opzionali):
+    Expected schema (all fields optional):
         {
-            "name": "Nome persona",
+            "name": "Person name",
             "capital": 50000,
             "risk_profile": "moderate",     // conservative | moderate | aggressive
             "period": "5y",                 // 1y | 2y | 5y | max
-            "output_file": "report_nome.html",
+            "output_file": "report_name.html",
             "full_universe": false,
-            "holdings": {"AAPL": 5000, "MSFT": 3000},   // holding attuali (EUR/USD), opzionale
+            "holdings": {"AAPL": 5000, "MSFT": 3000},   // current holdings (EUR/USD), optional
             "sector_tilts": {"Banking & Financial Services": -0.15, "Mining & Materials": 0.05}
-            // preferenza personale: sposta punti percentuali di peso da un
-            // settore all'altro dopo l'ottimizzazione (positivo = aumenta,
-            // negativo = riduce). I nomi settore devono corrispondere a
-            // quelli in SECTOR_CLASSIFICATION (portfolio_config.py)
+            // personal preference: shifts percentage points of weight from
+            // one sector to another after optimization (positive =
+            // increase, negative = decrease). Sector names must match those
+            // in SECTOR_CLASSIFICATION (portfolio_config.py)
         }
 
     Returns:
-        Dict con i campi risolti (name, capital, risk_profile, period,
+        Dict with the resolved fields (name, capital, risk_profile, period,
         output_file, full_universe, holdings, sector_tilts)
 
     Raises:
-        FileNotFoundError se il profilo non esiste (con elenco di quelli disponibili)
-        ValueError se il JSON è malformato
+        FileNotFoundError if the profile doesn't exist (with a list of the available ones)
+        ValueError if the JSON is malformed
     """
     path = os.path.join(PROFILES_DIR, f"{name}.json")
 
     if not os.path.isfile(path):
         available = list_profiles()
-        available_str = ", ".join(available) if available else "nessuno (aggiungi un file in profiles/)"
+        available_str = ", ".join(available) if available else "none (add a file under profiles/)"
         raise FileNotFoundError(
-            f"Profilo '{name}' non trovato in {PROFILES_DIR}. Profili disponibili: {available_str}"
+            f"Profile '{name}' not found in {PROFILES_DIR}. Available profiles: {available_str}"
         )
 
     try:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        raise ValueError(f"Profilo '{name}' non è un JSON valido: {e}")
+        raise ValueError(f"Profile '{name}' is not valid JSON: {e}")
 
     holdings = data.get('holdings', {}) or {}
     if not isinstance(holdings, dict):
-        raise ValueError(f"Profilo '{name}': 'holdings' deve essere un oggetto {{ticker: importo}}")
+        raise ValueError(f"Profile '{name}': 'holdings' must be an object {{ticker: amount}}")
 
     sector_tilts = data.get('sector_tilts', {}) or {}
     if not isinstance(sector_tilts, dict):
-        raise ValueError(f"Profilo '{name}': 'sector_tilts' deve essere un oggetto {{settore: delta}}")
+        raise ValueError(f"Profile '{name}': 'sector_tilts' must be an object {{sector: delta}}")
 
     return {
         'name': data.get('name', name),

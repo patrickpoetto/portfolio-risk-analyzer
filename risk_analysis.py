@@ -1,5 +1,5 @@
 """
-Modulo per analisi di rischio e rendimento del portafoglio
+Module for portfolio risk and return analysis
 """
 
 import yfinance as yf
@@ -13,14 +13,14 @@ warnings.filterwarnings('ignore')
 
 def cap_weights(weights: Dict[str, float], max_weight: float) -> Dict[str, float]:
     """
-    Applica un tetto al peso massimo per singolo ticker e redistribuisce
-    l'eccesso sugli altri pesi, iterando finché il cap è rispettato da tutti.
+    Applies a cap to the maximum weight per ticker and redistributes the
+    excess across the other weights, iterating until the cap is respected
+    by all of them.
 
-    Un semplice "clip poi rinormalizza in un solo passo" non basta: dividere
-    per la somma dopo il clip fa risalire anche i valori già cappati sopra
-    la soglia. Se il cap è matematicamente irraggiungibile (troppo pochi
-    ticker per il tetto configurato), il cap effettivo diventa il peso
-    equamente distribuito (1/n).
+    A simple "clip then renormalize in one pass" is not enough: dividing by
+    the sum after clipping pushes the already-capped values back above the
+    threshold. If the cap is mathematically unreachable (too few tickers for
+    the configured cap), the effective cap becomes the equal-weight share (1/n).
     """
     tickers = list(weights.keys())
     n = len(tickers)
@@ -54,65 +54,65 @@ def cap_weights(weights: Dict[str, float], max_weight: float) -> Dict[str, float
 
 def fetch_historical_data(tickers: List[str], period: str = "1y") -> pd.DataFrame:
     """
-    Scarica dati storici per i ticker specificati
-    
+    Downloads historical data for the given tickers
+
     Args:
-        tickers: Lista di ticker symbols
-        period: Periodo (1y, 2y, 5y, max)
-    
+        tickers: List of ticker symbols
+        period: Period (1y, 2y, 5y, max)
+
     Returns:
-        DataFrame con prezzi di chiusura aggiustati
+        DataFrame with adjusted closing prices
     """
-    print(f"📊 Scaricamento dati storici per {len(tickers)} ticker...")
-    
+    print(f"📊 Downloading historical data for {len(tickers)} tickers...")
+
     data = {}
     failed = []
-    
+
     for ticker in tickers:
         try:
             tk = yf.Ticker(ticker)
             hist = tk.history(period=period)
-            
-            if not hist.empty and len(hist) > 20:  # Minimo 20 giorni di dati
+
+            if not hist.empty and len(hist) > 20:  # Minimum 20 days of data
                 close = hist['Close']
-                # yfinance ritorna l'indice nel fuso orario della borsa di
-                # quotazione (es. America/New_York per AAPL, Europe/London
-                # per RR.L, Europe/Zurich per HOLN.SW...). Se lasciato così,
-                # combinare ticker di borse diverse in un unico DataFrame non
-                # allinea le stesse giornate di trading: "2026-06-29 New York"
-                # e "2026-06-29 Londra" sono istanti UTC diversi, quindi
-                # diventano righe separate. Il risultato è un indice gonfiato
-                # di righe quasi-duplicate che il forward-fill successivo
-                # riempie con rendimenti giornalieri artificiali vicini a
-                # zero, falsando volatilità/rendimento annualizzati di
-                # qualunque metrica calcolata a valle. Normalizziamo tutti gli
-                # indici a semplici date (fuso rimosso) per farli combaciare.
+                # yfinance returns the index in the timezone of the listing
+                # exchange (e.g. America/New_York for AAPL, Europe/London
+                # for RR.L, Europe/Zurich for HOLN.SW...). Left as-is,
+                # combining tickers from different exchanges into a single
+                # DataFrame does not align the same trading days: "2026-06-29
+                # New York" and "2026-06-29 London" are different UTC
+                # instants, so they end up as separate rows. The result is
+                # an index inflated with near-duplicate rows, which the
+                # subsequent forward-fill fills with artificial near-zero
+                # daily returns, distorting any downstream annualized
+                # volatility/return metric. We normalize all indices to
+                # plain dates (timezone stripped) so they line up.
                 close.index = close.index.tz_localize(None).normalize()
                 data[ticker] = close
             else:
                 failed.append(ticker)
-                print(f"  ⚠️  {ticker}: dati insufficienti")
-                
+                print(f"  ⚠️  {ticker}: insufficient data")
+
         except Exception as e:
             failed.append(ticker)
-            print(f"  ❌ {ticker}: errore - {str(e)[:50]}")
-    
+            print(f"  ❌ {ticker}: error - {str(e)[:50]}")
+
     if not data:
-        raise ValueError("Nessun dato disponibile per i ticker forniti")
-    
+        raise ValueError("No data available for the given tickers")
+
     df = pd.DataFrame(data)
-    
-    # Rimuovi righe completamente vuote (quando nessun mercato è aperto)
+
+    # Drop fully empty rows (when no market is open)
     df = df.dropna(how='all')
-    
-    # Forward fill per gestire orari di mercato diversi
-    # Questo riempie i NA con l'ultimo prezzo valido
+
+    # Forward fill to handle different market hours
+    # This fills NaNs with the last valid price
     df = df.ffill()
-    
-    # Rimuovi eventuali NA all'inizio (prima osservazione)
+
+    # Drop any remaining NaNs at the start (first observation)
     df = df.dropna()
-    
-    print(f"✅ Dati scaricati: {len(data)} ticker, {len(failed)} falliti\n")
+
+    print(f"✅ Data downloaded: {len(data)} tickers, {len(failed)} failed\n")
 
     return df
 
@@ -122,26 +122,26 @@ def split_in_sample_out_of_sample(prices: pd.DataFrame,
                                   min_oos_days: int,
                                   max_oos_days: int) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
     """
-    Divide la serie storica in una finestra "in-sample" (usata per scouting,
-    selezione smart dei titoli e ottimizzazione dei pesi) e una finestra
-    "out-of-sample" finale, mai vista da nessuna di queste fasi.
+    Splits the historical series into an "in-sample" window (used for
+    scouting, smart stock selection and weight optimization) and a final
+    "out-of-sample" window, never seen by any of these stages.
 
-    Senza questo split, il backtest valuterebbe la selezione sugli stessi
-    dati usati per sceglierla (i titoli vengono scelti perché hanno il
-    miglior Sharpe storico proprio in quella finestra): un risultato
-    circolare e sistematicamente troppo ottimistico, non un test onesto.
+    Without this split, the backtest would evaluate the selection on the
+    same data used to choose it (stocks are chosen because they have the
+    best historical Sharpe precisely in that window): a circular and
+    systematically over-optimistic result, not an honest test.
 
-    Se lo storico disponibile è troppo corto per uno split sensato, ritorna
-    tutti i dati come in-sample e nessun holdout (oos_days=0): il backtest,
-    in quel caso, resta interamente in-sample e va interpretato con cautela
-    (lo segnaliamo esplicitamente nel report).
+    If the available history is too short for a sensible split, it returns
+    all data as in-sample with no holdout (oos_days=0): in that case the
+    backtest stays entirely in-sample and should be interpreted with
+    caution (this is flagged explicitly in the report).
     """
     total_days = len(prices)
     oos_days = int(total_days * oos_ratio)
     oos_days = max(min_oos_days, min(max_oos_days, oos_days))
 
-    # Serve comunque spazio sufficiente per calcolare metriche significative
-    # sulla parte in-sample (almeno il doppio della finestra di holdout)
+    # There still needs to be enough room to compute meaningful metrics on
+    # the in-sample part (at least double the holdout window)
     if oos_days <= 0 or total_days - oos_days < max(min_oos_days * 2, 60):
         return prices, prices.iloc[0:0], 0
 
@@ -151,46 +151,46 @@ def split_in_sample_out_of_sample(prices: pd.DataFrame,
 
 
 def calculate_returns(prices: pd.DataFrame) -> pd.DataFrame:
-    """Calcola rendimenti giornalieri percentuali"""
+    """Computes daily percentage returns"""
     return prices.pct_change()
 
 
 def calculate_metrics(prices: pd.DataFrame, weights: Dict[str, float] = None) -> pd.DataFrame:
     """
-    Calcola metriche di rischio/rendimento per ogni ticker
-    
+    Computes risk/return metrics for each ticker
+
     Args:
-        prices: DataFrame con prezzi storici
-        weights: Dizionario opzionale con pesi del portafoglio
-    
+        prices: DataFrame with historical prices
+        weights: Optional dict with portfolio weights
+
     Returns:
-        DataFrame con metriche calcolate
+        DataFrame with computed metrics
     """
     returns = calculate_returns(prices)
-    
+
     metrics = []
-    
+
     for ticker in prices.columns:
         if ticker not in returns.columns:
             continue
-            
+
         ret = returns[ticker].dropna()
-        
-        # Richiede almeno 10 giorni di dati validi
+
+        # Requires at least 10 days of valid data
         if len(ret) < 10:
             continue
-        
-        # Calcoli base
-        volatility = ret.std()
-        annual_volatility = volatility * np.sqrt(252)  # scaling per sqrt(T), valido sia in ottica aritmetica che geometrica
 
-        # Calcolo rendimento totale nel periodo
+        # Base calculations
+        volatility = ret.std()
+        annual_volatility = volatility * np.sqrt(252)  # sqrt(T) scaling, valid in both an arithmetic and geometric sense
+
+        # Total return over the period
         total_return = (prices[ticker].iloc[-1] / prices[ticker].iloc[0] - 1)
 
-        # Annualizzazione GEOMETRICA (CAGR), coerente con quella usata in backtest.py:
-        # composta correttamente nel tempo, a differenza di una semplice media
-        # aritmetica giornaliera * 252 (che sovrastima il rendimento reale sui
-        # titoli volatili per la disuguaglianza di Jensen)
+        # GEOMETRIC annualization (CAGR), consistent with the one used in
+        # backtest.py: compounded correctly over time, unlike a simple daily
+        # arithmetic mean * 252 (which overstates the real return on
+        # volatile stocks due to Jensen's inequality)
         years = len(ret) / 252
         if years > 0 and total_return > -0.99:
             annual_return = (1 + total_return) ** (1 / years) - 1
@@ -206,9 +206,9 @@ def calculate_metrics(prices: pd.DataFrame, weights: Dict[str, float] = None) ->
         drawdown = (cumulative - running_max) / running_max
         max_drawdown = drawdown.min()
 
-        # VaR (Value at Risk) al 95%, giornaliero (NON annualizzato)
+        # VaR (Value at Risk) at 95%, daily (NOT annualized)
         var_95 = np.percentile(ret, 5)
-        
+
         metrics.append({
             'ticker': ticker,
             'total_return': total_return,
@@ -219,34 +219,34 @@ def calculate_metrics(prices: pd.DataFrame, weights: Dict[str, float] = None) ->
             'var_95': var_95,
             'weight': weights.get(ticker, 0) if weights else 0
         })
-    
+
     df_metrics = pd.DataFrame(metrics)
-    
-    # Aggiungi rank per diverse metriche (solo se abbiamo dati)
+
+    # Add ranks for different metrics (only if we have data)
     if not df_metrics.empty and len(df_metrics) > 0:
         df_metrics['return_rank'] = df_metrics['annual_return'].rank(ascending=False)
         df_metrics['sharpe_rank'] = df_metrics['sharpe_ratio'].rank(ascending=False)
         df_metrics['risk_rank'] = df_metrics['annual_volatility'].rank(ascending=True)  # Lower is better
-    
+
     return df_metrics
 
 
 def calculate_correlation_matrix(prices: pd.DataFrame) -> pd.DataFrame:
-    """Calcola matrice di correlazione dei rendimenti"""
+    """Computes the correlation matrix of returns"""
     returns = calculate_returns(prices)
     return returns.corr()
 
 
 def calculate_portfolio_metrics(prices: pd.DataFrame, weights: Dict[str, float]) -> Dict:
     """
-    Calcola metriche a livello di portafoglio
-    
+    Computes portfolio-level metrics
+
     Args:
-        prices: DataFrame con prezzi storici
-        weights: Dizionario con pesi {ticker: peso}
-    
+        prices: DataFrame with historical prices
+        weights: Dict with weights {ticker: weight}
+
     Returns:
-        Dizionario con metriche del portafoglio
+        Dict with portfolio metrics
     """
     returns = calculate_returns(prices)
 
@@ -260,20 +260,20 @@ def calculate_portfolio_metrics(prices: pd.DataFrame, weights: Dict[str, float])
         'cvar_95': 0
     }
 
-    # Normalizza i pesi
+    # Normalize weights
     total_weight = sum(weights.values())
     if total_weight == 0:
         return empty_result
 
     normalized_weights = {k: v/total_weight for k, v in weights.items()}
 
-    # Filtra solo i ticker presenti nei dati
+    # Keep only tickers present in the data
     valid_weights = {k: v for k, v in normalized_weights.items() if k in returns.columns}
 
     if not valid_weights:
         return empty_result
 
-    # Crea serie di rendimenti del portafoglio
+    # Build the portfolio return series
     portfolio_returns = pd.Series(0, index=returns.index)
 
     for ticker, weight in valid_weights.items():
@@ -281,20 +281,20 @@ def calculate_portfolio_metrics(prices: pd.DataFrame, weights: Dict[str, float])
 
     portfolio_returns_clean = portfolio_returns.dropna()
 
-    # Volatilità
+    # Volatility
     volatility = portfolio_returns.std()
     annual_volatility = volatility * np.sqrt(252)
 
-    # Max Drawdown del portafoglio
+    # Portfolio Max Drawdown
     cumulative = (1 + portfolio_returns).cumprod()
     running_max = cumulative.expanding().max()
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = drawdown.min()
 
-    # Calcola total return solo se abbiamo dati
+    # Compute total return only if we have data
     total_return = cumulative.iloc[-1] - 1 if len(cumulative) > 0 else 0
 
-    # Annualizzazione GEOMETRICA (CAGR), coerente con calculate_metrics e backtest.py
+    # GEOMETRIC annualization (CAGR), consistent with calculate_metrics and backtest.py
     years = len(portfolio_returns_clean) / 252
     if years > 0 and total_return > -0.99:
         annual_return = (1 + total_return) ** (1 / years) - 1
@@ -303,10 +303,11 @@ def calculate_portfolio_metrics(prices: pd.DataFrame, weights: Dict[str, float])
 
     sharpe = (annual_return - RISK_FREE_RATE) / annual_volatility if annual_volatility > 0 else 0
 
-    # VaR e CVaR (Expected Shortfall) al 95%, giornalieri (NON annualizzati):
-    # il VaR è la perdita "di soglia" nel 5% dei giorni peggiori, il CVaR è la
-    # perdita media condizionata a essere oltre quella soglia (più informativo
-    # sul rischio di coda, perché il VaR da solo ignora quanto si perde oltre la soglia)
+    # VaR and CVaR (Expected Shortfall) at 95%, daily (NOT annualized): the
+    # VaR is the "threshold" loss on the worst 5% of days, the CVaR is the
+    # average loss conditional on being beyond that threshold (more
+    # informative about tail risk, since the VaR alone ignores how much is
+    # lost beyond the threshold)
     if len(portfolio_returns_clean) >= 10:
         var_95 = np.percentile(portfolio_returns_clean, 5)
         tail_losses = portfolio_returns_clean[portfolio_returns_clean <= var_95]
@@ -328,15 +329,15 @@ def calculate_portfolio_metrics(prices: pd.DataFrame, weights: Dict[str, float])
 
 def calculate_concentration(weights: Dict[str, float]) -> Dict[str, float]:
     """
-    Misura quanto i pesi del portafoglio sono concentrati, tramite l'indice
-    di Herfindahl-Hirschman (HHI = somma dei pesi al quadrato).
+    Measures how concentrated the portfolio weights are, via the
+    Herfindahl-Hirschman Index (HHI = sum of squared weights).
 
-    HHI = 1/N per un portafoglio equipesato su N titoli, HHI = 1 se tutto il
-    capitale è su un solo titolo. effective_n = 1/HHI è il "numero equivalente"
-    di titoli equipesati che darebbe la stessa concentrazione: due portafogli
-    con lo stesso N possono avere una concentrazione reale molto diversa a
-    seconda di come sono distribuiti i pesi (utile perché la sola correlazione
-    media non se ne accorge).
+    HHI = 1/N for a portfolio equal-weighted over N stocks, HHI = 1 if all
+    capital is in a single stock. effective_n = 1/HHI is the "equivalent
+    number" of equal-weighted stocks that would give the same
+    concentration: two portfolios with the same N can have very different
+    real concentration depending on how the weights are distributed (useful
+    because average correlation alone doesn't catch this).
     """
     total_weight = sum(weights.values())
     if not weights or total_weight == 0:
@@ -346,8 +347,8 @@ def calculate_concentration(weights: Dict[str, float]) -> Dict[str, float]:
     hhi = float(np.sum(normalized ** 2))
     effective_n = 1 / hhi if hhi > 0 else 0
 
-    # Score 0-100: 100 = pesi perfettamente distribuiti, tende a 0 quando
-    # il portafoglio si concentra su pochi titoli
+    # Score 0-100: 100 = perfectly distributed weights, tends to 0 as the
+    # portfolio concentrates into a few stocks
     concentration_score = max(0, min(100, (1 - hhi) * 100))
 
     return {'hhi': hhi, 'effective_n': effective_n, 'concentration_score': concentration_score}
@@ -355,14 +356,14 @@ def calculate_concentration(weights: Dict[str, float]) -> Dict[str, float]:
 
 def get_diversification_score(correlation_matrix: pd.DataFrame, weights: Dict[str, float]) -> float:
     """
-    Calcola un punteggio di diversificazione (0-100) combinando due aspetti
-    indipendenti (pesi da DIVERSIFICATION_CONFIG):
-    - correlazione media ponderata tra i titoli (bassa correlazione = meglio)
-    - concentrazione dei pesi via HHI (pesi ben distribuiti = meglio)
+    Computes a diversification score (0-100) combining two independent
+    aspects (weighted per DIVERSIFICATION_CONFIG):
+    - weighted average correlation between stocks (lower correlation = better)
+    - weight concentration via HHI (well-distributed weights = better)
 
-    Una bassa correlazione media da sola può ingannare: un portafoglio con
-    2 titoli scorrelati avrebbe lo stesso punteggio "di correlazione" di uno
-    con 50, pur essendo molto più concentrato e quindi più rischioso.
+    A low average correlation alone can be misleading: a portfolio with 2
+    uncorrelated stocks would get the same "correlation score" as one with
+    50, despite being far more concentrated and therefore riskier.
     """
     if not weights:
         return 0
@@ -378,11 +379,11 @@ def get_diversification_score(correlation_matrix: pd.DataFrame, weights: Dict[st
         if not correlation_matrix.empty else []
 
     if len(valid_tickers) < 2:
-        # Senza una matrice di correlazione utilizzabile, lo score si basa
-        # solo sulla concentrazione dei pesi
+        # Without a usable correlation matrix, the score is based only on
+        # weight concentration
         return concentration_score
 
-    # Calcola correlazione media ponderata (escludendo diagonale)
+    # Compute the weighted average correlation (excluding the diagonal)
     weighted_corr_sum = 0
     weight_sum = 0
 
@@ -395,8 +396,8 @@ def get_diversification_score(correlation_matrix: pd.DataFrame, weights: Dict[st
 
     avg_correlation = weighted_corr_sum / weight_sum if weight_sum > 0 else 0
 
-    # Converti in score: correlazione bassa = diversificazione alta
-    # Score 100 = correlazione 0 o negativa, Score 0 = correlazione 1
+    # Convert to a score: low correlation = high diversification
+    # Score 100 = correlation 0 or negative, Score 0 = correlation 1
     correlation_score = max(0, min(100, (1 - avg_correlation) * 100))
 
     corr_w = DIVERSIFICATION_CONFIG['correlation_weight']
@@ -405,149 +406,57 @@ def get_diversification_score(correlation_matrix: pd.DataFrame, weights: Dict[st
     return correlation_score * corr_w + concentration_score * conc_w
 
 
-def optimize_allocation_with_correlation(metrics: pd.DataFrame, 
-                                        correlation_matrix: pd.DataFrame,
-                                        target_risk: str = "moderate",
-                                        max_correlation: float = 0.7) -> pd.DataFrame:
-    """
-    Ottimizza allocazione riducendo correlazioni alte
-    
-    Args:
-        metrics: DataFrame con metriche dei ticker
-        correlation_matrix: Matrice di correlazione
-        target_risk: Profilo di rischio
-        max_correlation: Soglia massima correlazione accettabile
-    
-    Returns:
-        DataFrame con pesi ottimizzati considerando correlazioni
-    """
-    df = metrics.copy()
-    df = df[df['sharpe_ratio'].notna()].copy()
-    
-    if df.empty:
-        return df
-    
-    # Calcola score base (come prima)
-    if target_risk == "conservative":
-        df['base_score'] = (
-            df['sharpe_ratio'].rank(pct=True) * 0.4 +
-            (1 - df['annual_volatility'].rank(pct=True)) * 0.4 +
-            df['annual_return'].rank(pct=True) * 0.2
-        )
-    elif target_risk == "aggressive":
-        df['base_score'] = (
-            df['annual_return'].rank(pct=True) * 0.6 +
-            df['sharpe_ratio'].rank(pct=True) * 0.3 +
-            (1 - df['annual_volatility'].rank(pct=True)) * 0.1
-        )
-    else:
-        df['base_score'] = (
-            df['annual_return'].rank(pct=True) * 0.35 +
-            df['sharpe_ratio'].rank(pct=True) * 0.35 +
-            (1 - df['annual_volatility'].rank(pct=True)) * 0.3
-        )
-    
-    # Penalizza titoli con alta correlazione media
-    avg_correlations = {}
-    for ticker in df['ticker']:
-        if ticker in correlation_matrix.index:
-            # Correlazione media con altri titoli (escluso se stesso)
-            corr_values = correlation_matrix[ticker].drop(ticker, errors='ignore')
-            avg_corr = corr_values.mean()
-            avg_correlations[ticker] = avg_corr
-        else:
-            avg_correlations[ticker] = 0
-    
-    df['avg_correlation'] = df['ticker'].map(avg_correlations)
-    
-    # Penalty per alta correlazione: più alta è la correlazione, più basso il peso.
-    # La penalty parte da 0.3 di correlazione media e arriva al massimo (1.0)
-    # in corrispondenza di max_correlation (soglia configurabile).
-    penalty_span = max(max_correlation - 0.3, 0.01)
-    df['correlation_penalty'] = df['avg_correlation'].apply(
-        lambda x: min(1, max(0, (x - 0.3) / penalty_span)) if x > 0.3 else 0
-    )
-
-    # Penalty per sopravvalutazione: percentile 0-1 (0=economico, 1=caro
-    # rispetto al proprio settore) calcolato in valuation.calculate_valuation_scores
-    # e già unito a metrics a monte. Se assente (colonna non presente), nessuna
-    # penalty (0.5 = neutro non penalizzerebbe comunque, ma qui usiamo 0 per
-    # retrocompatibilità con chiamate che non passano dati di valutazione)
-    from portfolio_config import VALUATION_CONFIG
-    overvaluation = df['overvaluation_percentile'] if 'overvaluation_percentile' in df.columns else 0
-
-    # Score finale = base_score ridotto dalle penalty (correlazione + sopravvalutazione)
-    df['final_score'] = (
-        df['base_score']
-        * (1 - df['correlation_penalty'] * 0.5)
-        * (1 - overvaluation * VALUATION_CONFIG['penalty_weight'])
-    )
-
-    # Normalizza per ottenere pesi
-    df['suggested_weight'] = df['final_score'] / df['final_score'].sum()
-
-    # Importa configurazione
-    from portfolio_config import ALLOCATION_CONFIG
-
-    # Limita peso massimo (con redistribuzione iterativa dell'eccesso)
-    max_weight = ALLOCATION_CONFIG['max_weight_per_stock']
-    capped = cap_weights(dict(zip(df['ticker'], df['suggested_weight'])), max_weight)
-    df['suggested_weight'] = df['ticker'].map(capped)
-
-    return df.sort_values('suggested_weight', ascending=False)
-
-
-def suggest_optimal_allocation(metrics: pd.DataFrame, 
+def suggest_optimal_allocation(metrics: pd.DataFrame,
                               target_risk: str = "moderate") -> pd.DataFrame:
     """
-    Suggerisce un'allocazione ottimale basata su risk/return
-    
+    Suggests an optimal allocation based on risk/return
+
     Args:
-        metrics: DataFrame con metriche dei ticker
+        metrics: DataFrame with stock metrics
         target_risk: 'conservative', 'moderate', 'aggressive'
-    
+
     Returns:
-        DataFrame con pesi suggeriti
+        DataFrame with suggested weights
     """
     df = metrics.copy()
-    
-    # Rimuovi ticker con dati insufficienti
+
+    # Remove tickers with insufficient data
     df = df[df['sharpe_ratio'].notna()].copy()
-    
+
     if df.empty:
         return df
-    
-    # Strategia basata sul profilo di rischio
+
+    # Strategy based on risk profile
     if target_risk == "conservative":
-        # Favorisci bassa volatilità e Sharpe alto
+        # Favor low volatility and high Sharpe
         df['score'] = (
             df['sharpe_ratio'].rank(pct=True) * 0.4 +
             (1 - df['annual_volatility'].rank(pct=True)) * 0.4 +
             df['annual_return'].rank(pct=True) * 0.2
         )
     elif target_risk == "aggressive":
-        # Favorisci alto rendimento
+        # Favor high return
         df['score'] = (
             df['annual_return'].rank(pct=True) * 0.6 +
             df['sharpe_ratio'].rank(pct=True) * 0.3 +
             (1 - df['annual_volatility'].rank(pct=True)) * 0.1
         )
     else:  # moderate
-        # Bilanciato
+        # Balanced
         df['score'] = (
             df['annual_return'].rank(pct=True) * 0.35 +
             df['sharpe_ratio'].rank(pct=True) * 0.35 +
             (1 - df['annual_volatility'].rank(pct=True)) * 0.3
         )
-    
-    # Normalizza gli score per ottenere pesi
+
+    # Normalize the scores to get weights
     df['suggested_weight'] = df['score'] / df['score'].sum()
-    
-    # Limita peso massimo per singolo titolo (max 15% per diversificazione)
+
+    # Cap the maximum weight per single stock (max 15% for diversification)
     max_weight = 0.15
     df['suggested_weight'] = df['suggested_weight'].clip(upper=max_weight)
-    
-    # Rinormalizza
+
+    # Renormalize
     df['suggested_weight'] = df['suggested_weight'] / df['suggested_weight'].sum()
-    
+
     return df.sort_values('suggested_weight', ascending=False)

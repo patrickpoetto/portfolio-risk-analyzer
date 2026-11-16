@@ -1,23 +1,23 @@
 """
-Bot Telegram sempre attivo per il monitoraggio del portafoglio.
+Always-on Telegram bot for portfolio monitoring.
 
-Risponde a comandi in chat con lo stato live del portafoglio (riusando
-portfolio_monitor.py/dashboard.py, la stessa fonte dati della dashboard
-HTML) e manda alert push quando un titolo si muove oltre una soglia di
-variazione giornaliera. La modifica delle posizioni (acquisti/vendite)
-resta volutamente fuori da qui: si fa da terminale con holdings.py, per
-scelta esplicita (comando da terminale invece che via bot).
+Responds to chat commands with the live state of the portfolio (reusing
+portfolio_monitor.py/dashboard.py, the same data source as the HTML
+dashboard) and sends push alerts when a stock moves beyond a daily
+variation threshold. Editing positions (buys/sells) is deliberately kept
+out of here: that's done from the terminal with holdings.py, by explicit
+choice (a terminal command instead of doing it via the bot).
 
-Setup (vedi anche il messaggio di benvenuto stampato all'avvio):
-    1. Crea un file .env nella root del progetto (mai committato, vedi
-       .gitignore) con:
+Setup (see also the welcome message printed on startup):
+    1. Create a .env file in the project root (never committed, see
+       .gitignore) with:
            TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
            TELEGRAM_CHAT_ID=12345678
     2. python telegram_bot.py
 
-Il bot risponde SOLO al chat_id configurato: chiunque altro scriva al bot
-(anche conoscendo il suo username) riceve un rifiuto, senza vedere nessun
-dato del portafoglio.
+The bot responds ONLY to the configured chat_id: anyone else writing to
+the bot (even knowing its username) gets a refusal, without seeing any
+portfolio data.
 """
 
 import json
@@ -45,11 +45,11 @@ LAST_ALERTS_FILE = os.path.join(HOLDINGS_DIR, "last_alerts.json")
 
 
 def authorized_only(handler):
-    """Ignora/rifiuta ogni messaggio che non arrivi dal chat_id configurato in .env."""
+    """Ignores/rejects any message that doesn't come from the chat_id configured in .env."""
     @wraps(handler)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if str(update.effective_chat.id) != str(CHAT_ID):
-            await update.message.reply_text("⛔ Non autorizzato.")
+            await update.message.reply_text("⛔ Not authorized.")
             return
         await handler(update, context)
     return wrapper
@@ -58,22 +58,22 @@ def authorized_only(handler):
 @authorized_only
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📡 Bot di monitoraggio portafoglio attivo.\n\n"
-        "Comandi disponibili:\n"
-        "/status — riepilogo completo (valore, P/L, top movimenti)\n"
-        "/pl — solo plus/minusvalenza totale\n"
-        "/dettaglio TICKER — dettaglio di un titolo\n"
-        "/utili — prossime pubblicazioni utili\n"
-        "/dividendi — prossimi stacchi/pagamenti dividendo\n"
-        "/dashboard — genera e invia la dashboard HTML aggiornata\n\n"
-        f"Alert automatico se un titolo si muove oltre ±{ALERT_THRESHOLD_PCT:.0%} in giornata "
-        f"(controllo ogni {ALERT_INTERVAL_MINUTES:.0f} minuti)."
+        "📡 Portfolio monitoring bot active.\n\n"
+        "Available commands:\n"
+        "/status — full summary (value, P/L, top movers)\n"
+        "/pl — total gain/loss only\n"
+        "/detail TICKER — detail for a single stock\n"
+        "/earnings — upcoming earnings releases\n"
+        "/dividends — upcoming ex-dividend/payment dates\n"
+        "/dashboard — generate and send the updated HTML dashboard\n\n"
+        f"Automatic alert if a stock moves beyond ±{ALERT_THRESHOLD_PCT:.0%} intraday "
+        f"(checked every {ALERT_INTERVAL_MINUTES:.0f} minutes)."
     )
 
 
 @authorized_only
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ Aggiorno i prezzi, un attimo...")
+    await update.message.reply_text("⏳ Updating prices, one moment...")
     data = get_monitor_data()
     snapshot = data["snapshot"]
     totals = data["totals"]
@@ -85,23 +85,23 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     def fmt_line(row):
         return f"{row['ticker']:10s} {row['unrealized_pl_pct']:+7.2%}  ({row['unrealized_pl_eur']:+,.0f} €)"
 
-    pl_pct_str = f"{totals['unrealized_pl_pct']:+.2%}" if totals['unrealized_pl_pct'] is not None else "n/d"
+    pl_pct_str = f"{totals['unrealized_pl_pct']:+.2%}" if totals['unrealized_pl_pct'] is not None else "n/a"
 
     lines = [
-        "📊 <b>STATO PORTAFOGLIO</b>",
+        "📊 <b>PORTFOLIO STATUS</b>",
         "",
-        f"Valore di mercato: <b>{totals['total_market_value_eur']:,.2f} €</b>",
-        f"Costo di carico:   {totals['total_cost_basis_eur']:,.2f} €",
-        f"P/L non realizzata: <b>{totals['unrealized_pl_eur']:+,.2f} € ({pl_pct_str})</b>",
-        f"P/L realizzata cumulata: {totals['realized_pl_eur']:+,.2f} €",
+        f"Market value: <b>{totals['total_market_value_eur']:,.2f} €</b>",
+        f"Cost basis:    {totals['total_cost_basis_eur']:,.2f} €",
+        f"Unrealized P/L: <b>{totals['unrealized_pl_eur']:+,.2f} € ({pl_pct_str})</b>",
+        f"Cumulative realized P/L: {totals['realized_pl_eur']:+,.2f} €",
         "",
-        "🟢 <b>Top 3 in guadagno</b>",
+        "🟢 <b>Top 3 gainers</b>",
         "<pre>" + "\n".join(fmt_line(r) for _, r in top_gainers.iterrows()) + "</pre>",
-        "🔴 <b>Top 3 in perdita</b>",
+        "🔴 <b>Top 3 losers</b>",
         "<pre>" + "\n".join(fmt_line(r) for _, r in top_losers.iterrows()) + "</pre>",
     ]
     if totals["failed_tickers"]:
-        lines.append(f"⚠️ Prezzo non disponibile per: {', '.join(totals['failed_tickers'])}")
+        lines.append(f"⚠️ Price unavailable for: {', '.join(totals['failed_tickers'])}")
 
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
 
@@ -110,19 +110,19 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def pl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_monitor_data()
     totals = data["totals"]
-    pl_pct_str = f"{totals['unrealized_pl_pct']:+.2%}" if totals['unrealized_pl_pct'] is not None else "n/d"
+    pl_pct_str = f"{totals['unrealized_pl_pct']:+.2%}" if totals['unrealized_pl_pct'] is not None else "n/a"
     await update.message.reply_text(
-        f"P/L non realizzata: <b>{totals['unrealized_pl_eur']:+,.2f} € ({pl_pct_str})</b>\n"
-        f"P/L realizzata cumulata: {totals['realized_pl_eur']:+,.2f} €\n"
-        f"P/L totale: <b>{totals['total_pl_eur']:+,.2f} €</b>",
+        f"Unrealized P/L: <b>{totals['unrealized_pl_eur']:+,.2f} € ({pl_pct_str})</b>\n"
+        f"Cumulative realized P/L: {totals['realized_pl_eur']:+,.2f} €\n"
+        f"Total P/L: <b>{totals['total_pl_eur']:+,.2f} €</b>",
         parse_mode=ParseMode.HTML,
     )
 
 
 @authorized_only
-async def dettaglio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.message.reply_text("Uso: /dettaglio TICKER (es. /dettaglio AMD)")
+        await update.message.reply_text("Usage: /detail TICKER (e.g. /detail AMD)")
         return
 
     query = context.args[0].upper()
@@ -132,47 +132,47 @@ async def dettaglio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if match.empty:
         match = snapshot[snapshot["name"].str.upper().str.contains(query)]
     if match.empty:
-        await update.message.reply_text(f"Nessuna posizione trovata per '{query}'.")
+        await update.message.reply_text(f"No position found for '{query}'.")
         return
 
     r = match.iloc[0]
-    price_eur = f"{r['last_price_eur']:.2f} €" if r["last_price_eur"] is not None else "n/d"
-    pl_pct_str = f"{r['unrealized_pl_pct']:+.2%}" if r['unrealized_pl_pct'] is not None else "n/d"
+    price_eur = f"{r['last_price_eur']:.2f} €" if r["last_price_eur"] is not None else "n/a"
+    pl_pct_str = f"{r['unrealized_pl_pct']:+.2%}" if r['unrealized_pl_pct'] is not None else "n/a"
     await update.message.reply_text(
         f"<b>{r['ticker']}</b> — {r['name']}\n"
-        f"Borsa: {r['exchange']}\n"
-        f"Azioni: {r['shares']:.4f}\n"
-        f"Prezzo medio carico: {r['avg_cost_eur']:.2f} €\n"
-        f"Prezzo attuale: {price_eur} ({r['last_price_local']} {r['currency']})\n"
-        f"Valore di mercato: {r['market_value_eur']:,.2f} €\n"
+        f"Exchange: {r['exchange']}\n"
+        f"Shares: {r['shares']:.4f}\n"
+        f"Average cost: {r['avg_cost_eur']:.2f} €\n"
+        f"Current price: {price_eur} ({r['last_price_local']} {r['currency']})\n"
+        f"Market value: {r['market_value_eur']:,.2f} €\n"
         f"P/L: {r['unrealized_pl_eur']:+,.2f} € ({pl_pct_str})\n"
-        f"Peso in portafoglio: {r['weight']:.2%}",
+        f"Portfolio weight: {r['weight']:.2%}",
         parse_mode=ParseMode.HTML,
     )
 
 
 @authorized_only
-async def utili(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def earnings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_monitor_data()
     cal = data["calendar"].dropna(subset=["next_earnings_date"]).sort_values("next_earnings_date")
     if cal.empty:
-        await update.message.reply_text("Nessuna data utili nota per i titoli in portafoglio.")
+        await update.message.reply_text("No known earnings date for the stocks in the portfolio.")
         return
-    lines = ["📢 <b>PROSSIMI UTILI</b>", "<pre>"]
+    lines = ["📢 <b>UPCOMING EARNINGS</b>", "<pre>"]
     for _, r in cal.iterrows():
-        lines.append(f"{r['ticker']:10s} {r['next_earnings_date'].strftime('%d/%m/%Y')}  (tra {int(r['days_to_earnings'])}g)")
+        lines.append(f"{r['ticker']:10s} {r['next_earnings_date'].strftime('%d/%m/%Y')}  (in {int(r['days_to_earnings'])}d)")
     lines.append("</pre>")
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
 
 
 @authorized_only
-async def dividendi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def dividends(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_monitor_data()
     cal = data["calendar"].dropna(subset=["next_ex_dividend_date"]).sort_values("next_ex_dividend_date")
     if cal.empty:
-        await update.message.reply_text("Nessuna data di stacco dividendo nota per i titoli in portafoglio.")
+        await update.message.reply_text("No known ex-dividend date for the stocks in the portfolio.")
         return
-    lines = ["💶 <b>PROSSIMI STACCHI DIVIDENDO</b>", "<pre>"]
+    lines = ["💶 <b>UPCOMING EX-DIVIDEND DATES</b>", "<pre>"]
     for _, r in cal.iterrows():
         lines.append(f"{r['ticker']:10s} {r['next_ex_dividend_date'].strftime('%d/%m/%Y')}")
     lines.append("</pre>")
@@ -181,13 +181,13 @@ async def dividendi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @authorized_only
 async def dashboard_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ Genero la dashboard aggiornata...")
+    await update.message.reply_text("⏳ Generating the updated dashboard...")
     from dashboard import generate_dashboard_html
     data = get_monitor_data()
     path = generate_dashboard_html(data)
     with open(path, "rb") as f:
         await update.message.reply_document(f, filename="portfolio_dashboard.html",
-                                            caption="📡 Dashboard aggiornata")
+                                            caption="📡 Updated dashboard")
 
 
 def _load_last_alerts() -> dict:
@@ -204,11 +204,11 @@ def _save_last_alerts(alerts: dict) -> None:
 
 async def check_price_moves(context: ContextTypes.DEFAULT_TYPE):
     """
-    Job periodico: confronta prezzo corrente vs chiusura precedente per
-    ogni titolo in portafoglio, e manda un alert push se il movimento
-    supera la soglia configurata — al massimo un alert per titolo per
-    giorno di borsa, per non spammare ad ogni ciclo se il prezzo resta
-    sopra soglia per ore.
+    Periodic job: compares the current price vs. the previous close for
+    each stock in the portfolio, and sends a push alert if the move
+    exceeds the configured threshold — at most one alert per stock per
+    trading day, so it doesn't spam on every cycle if the price stays
+    beyond the threshold for hours.
     """
     from holdings import load_holdings
     tickers = [p["ticker"] for p in load_holdings()["positions"]]
@@ -234,7 +234,7 @@ async def check_price_moves(context: ContextTypes.DEFAULT_TYPE):
         emoji = "🚀" if change_pct > 0 else "🔻"
         await context.bot.send_message(
             chat_id=CHAT_ID,
-            text=f"{emoji} <b>{ticker}</b> {change_pct:+.2%} oggi (da {prev_close:.2f} a {last_price:.2f})",
+            text=f"{emoji} <b>{ticker}</b> {change_pct:+.2%} today (from {prev_close:.2f} to {last_price:.2f})",
             parse_mode=ParseMode.HTML,
         )
         last_alerts[ticker] = today
@@ -245,8 +245,8 @@ async def check_price_moves(context: ContextTypes.DEFAULT_TYPE):
 def main():
     if not BOT_TOKEN or not CHAT_ID:
         raise SystemExit(
-            "Mancano TELEGRAM_BOT_TOKEN e/o TELEGRAM_CHAT_ID: crea un file .env nella root "
-            "del progetto (vedi il docstring di questo file per come ottenerli)."
+            "TELEGRAM_BOT_TOKEN and/or TELEGRAM_CHAT_ID are missing: create a .env file in the "
+            "project root (see this file's docstring for how to obtain them)."
         )
 
     app = Application.builder().token(BOT_TOKEN).build()
@@ -254,16 +254,16 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", start))
     app.add_handler(CommandHandler("status", status))
-    app.add_handler(CommandHandler("portafoglio", status))
+    app.add_handler(CommandHandler("portfolio", status))
     app.add_handler(CommandHandler("pl", pl))
-    app.add_handler(CommandHandler("dettaglio", dettaglio))
-    app.add_handler(CommandHandler("utili", utili))
-    app.add_handler(CommandHandler("dividendi", dividendi))
+    app.add_handler(CommandHandler("detail", detail))
+    app.add_handler(CommandHandler("earnings", earnings))
+    app.add_handler(CommandHandler("dividends", dividends))
     app.add_handler(CommandHandler("dashboard", dashboard_cmd))
 
     app.job_queue.run_repeating(check_price_moves, interval=ALERT_INTERVAL_MINUTES * 60, first=15)
 
-    print("🤖 Bot Telegram avviato, in ascolto...")
+    print("🤖 Telegram bot started, listening...")
     app.run_polling()
 
 

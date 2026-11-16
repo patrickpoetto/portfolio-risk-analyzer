@@ -1,5 +1,5 @@
 """
-Generatore di report HTML con grafici interattivi
+HTML report generator with interactive charts
 """
 
 import plotly.graph_objects as go
@@ -12,13 +12,13 @@ from portfolio_config import (
     REPORT_CONFIG, CORRELATION_CONFIG, ALLOCATION_CONFIG, PORTFOLIO_TICKERS, THEME_CONFIG
 )
 
-# --- Helper di tema condivisi da tutti i grafici Plotly ("Midnight Terminal") ---
+# --- Theme helpers shared by all Plotly charts ("Midnight Terminal") ---
 
 CHART_COLORWAY = THEME_CONFIG['qualitative_palette']
 
 
 def _base_layout(**overrides) -> dict:
-    """Layout Plotly comune: sfondi scuri, font chiaro, griglie sottili bianche."""
+    """Common Plotly layout: dark backgrounds, light font, thin white gridlines."""
     layout = dict(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor=THEME_CONFIG['bg_card_alt'],
@@ -32,7 +32,7 @@ def _base_layout(**overrides) -> dict:
 
 
 def _axis(**overrides) -> dict:
-    """Stile assegnato agli assi cartesiani (griglie bianche sottili su sfondo scuro)."""
+    """Style applied to cartesian axes (thin white gridlines on a dark background)."""
     axis = dict(
         gridcolor=THEME_CONFIG['grid'],
         zerolinecolor=THEME_CONFIG['grid'],
@@ -44,7 +44,7 @@ def _axis(**overrides) -> dict:
 
 
 def _pct_class(value: float) -> str:
-    """Classe CSS 'positive'/'negative' in base al segno, per colorare valori nelle tabelle."""
+    """CSS class 'positive'/'negative' based on sign, used to color values in tables."""
     if value > 0:
         return 'positive'
     if value < 0:
@@ -54,7 +54,7 @@ def _pct_class(value: float) -> str:
 
 def create_pie_chart(data: pd.DataFrame, values_col: str, names_col: str,
                      title: str, color_scheme: str = None) -> str:
-    """Crea un grafico a torta interattivo con labels eleganti fuori"""
+    """Creates an interactive pie chart with elegant outside labels"""
     fig = px.pie(
         data,
         values=values_col,
@@ -64,7 +64,7 @@ def create_pie_chart(data: pd.DataFrame, values_col: str, names_col: str,
         hole=0.4  # Donut chart
     )
 
-    # Labels eleganti fuori dalle fette con linee
+    # Elegant labels outside the slices with connecting lines
     fig.update_traces(
         textposition='outside',
         textinfo='label+percent',
@@ -72,7 +72,7 @@ def create_pie_chart(data: pd.DataFrame, values_col: str, names_col: str,
         textfont_color=THEME_CONFIG['text_primary'],
         marker=dict(line=dict(color=THEME_CONFIG['bg_card'], width=2)),
         pull=[0.05 if i < 3 else 0 for i in range(len(data))],  # Pull out top 3
-        hovertemplate='<b>%{label}</b><br>Percentuale: %{percent}<br>Valore: %{value:.2%}<extra></extra>',
+        hovertemplate='<b>%{label}</b><br>Share: %{percent}<br>Value: %{value:.2%}<extra></extra>',
         insidetextorientation='horizontal'
     )
 
@@ -89,7 +89,7 @@ def create_pie_chart(data: pd.DataFrame, values_col: str, names_col: str,
         height=550,
         font=dict(size=12, color=THEME_CONFIG['text_primary'], family=THEME_CONFIG['font_family']),
         plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=150, t=60, b=20)  # Più spazio a destra per labels
+        margin=dict(l=20, r=150, t=60, b=20)  # More room on the right for labels
     ))
 
     return fig.to_html(include_plotlyjs='cdn', div_id=f"chart_{title.replace(' ', '_')}", config={'responsive': True})
@@ -97,7 +97,7 @@ def create_pie_chart(data: pd.DataFrame, values_col: str, names_col: str,
 
 def create_bar_chart(data: pd.DataFrame, x_col: str, y_col: str,
                      title: str, color_col: str = None) -> str:
-    """Crea un grafico a barre"""
+    """Creates a bar chart"""
 
     if color_col:
         fig = px.bar(
@@ -136,21 +136,21 @@ def create_bar_chart(data: pd.DataFrame, x_col: str, y_col: str,
 
 
 def create_scatter_risk_return(metrics: pd.DataFrame) -> str:
-    """Crea scatter plot rischio-rendimento"""
-    
+    """Creates a risk-return scatter plot"""
+
     if metrics.empty:
-        return "<p>Dati insufficienti per generare il grafico rischio-rendimento</p>"
-    
-    # Crea il grafico usando graph_objects per più controllo
+        return "<p>Insufficient data to generate the risk-return chart</p>"
+
+    # Build the chart using graph_objects for finer control
     fig = go.Figure()
-    
-    # Dimensione bolle basata su peso o uniforme
+
+    # Bubble size based on weight, or uniform
     if 'weight' in metrics.columns and metrics['weight'].sum() > 0:
         sizes = metrics['weight'] * 500 + 15
     else:
         sizes = [30] * len(metrics)
-    
-    # Aggiungi scatter plot
+
+    # Add the scatter plot
     fig.add_trace(go.Scatter(
         x=metrics['annual_volatility'],
         y=metrics['annual_return'],
@@ -168,17 +168,17 @@ def create_scatter_risk_return(metrics: pd.DataFrame) -> str:
         textposition='top center',
         textfont=dict(size=9, color=THEME_CONFIG['text_primary']),
         hovertemplate='<b>%{text}</b><br>' +
-                      'Rendimento: %{y:.2%}<br>' +
-                      'Volatilità: %{x:.2%}<br>' +
+                      'Return: %{y:.2%}<br>' +
+                      'Volatility: %{x:.2%}<br>' +
                       'Sharpe: %{marker.color:.2f}<extra></extra>',
         name=''
     ))
 
     fig.update_layout(_base_layout(
-        title='Analisi Rischio-Rendimento',
+        title='Risk-Return Analysis',
         height=600,
-        xaxis_title='Volatilità Annuale (Rischio)',
-        yaxis_title='Rendimento Annuale Atteso',
+        xaxis_title='Annual Volatility (Risk)',
+        yaxis_title='Expected Annual Return',
         xaxis=_axis(tickformat='.1%'),
         yaxis=_axis(tickformat='.1%'),
         showlegend=False
@@ -188,18 +188,18 @@ def create_scatter_risk_return(metrics: pd.DataFrame) -> str:
 
 
 def create_correlation_heatmap(corr_matrix: pd.DataFrame, top_n: int = 25) -> str:
-    """Crea heatmap delle correlazioni"""
-    
+    """Creates a correlation heatmap"""
+
     if corr_matrix.empty or len(corr_matrix) < 2:
-        return "<p>Dati insufficienti per generare la matrice di correlazione</p>"
-    
-    # Limita a top N ticker per leggibilità
+        return "<p>Insufficient data to generate the correlation matrix</p>"
+
+    # Limit to the top N tickers for readability
     if len(corr_matrix) > top_n:
-        # Seleziona i ticker con maggiore varianza di correlazione
+        # Select the tickers with the highest correlation variance
         variances = corr_matrix.var().sort_values(ascending=False)
         top_tickers = variances.head(top_n).index
         corr_matrix = corr_matrix.loc[top_tickers, top_tickers]
-    
+
     fig = go.Figure(data=go.Heatmap(
         z=corr_matrix.values,
         x=corr_matrix.columns.tolist(),
@@ -209,13 +209,13 @@ def create_correlation_heatmap(corr_matrix: pd.DataFrame, top_n: int = 25) -> st
         text=np.round(corr_matrix.values, 2),
         texttemplate='%{text}',
         textfont={"size": 8, "color": THEME_CONFIG['text_primary']},
-        colorbar=dict(title="Correlazione", tickfont=dict(color=THEME_CONFIG['text_primary']),
+        colorbar=dict(title="Correlation", tickfont=dict(color=THEME_CONFIG['text_primary']),
                      title_font=dict(color=THEME_CONFIG['text_primary'])),
-        hovertemplate='%{x} vs %{y}<br>Correlazione: %{z:.2f}<extra></extra>'
+        hovertemplate='%{x} vs %{y}<br>Correlation: %{z:.2f}<extra></extra>'
     ))
 
     fig.update_layout(_base_layout(
-        title=f'Matrice di Correlazione (Top {len(corr_matrix)} Titoli)',
+        title=f'Correlation Matrix (Top {len(corr_matrix)} Stocks)',
         height=700,
         xaxis=_axis(tickangle=-45),
         yaxis=_axis(tickangle=0),
@@ -225,22 +225,22 @@ def create_correlation_heatmap(corr_matrix: pd.DataFrame, top_n: int = 25) -> st
     return fig.to_html(include_plotlyjs='cdn', div_id="correlation_heatmap", config={'responsive': True})
 
 
-def create_top_performers_chart(metrics: pd.DataFrame, metric: str, 
+def create_top_performers_chart(metrics: pd.DataFrame, metric: str,
                                 top_n: int = 10, ascending: bool = False) -> str:
-    """Crea grafico dei top performer per una metrica"""
-    
+    """Creates a chart of the top performers for a given metric"""
+
     df_sorted = metrics.sort_values(metric, ascending=ascending).head(top_n)
-    
+
     metric_labels = {
-        'annual_return': 'Rendimento Annuale',
+        'annual_return': 'Annual Return',
         'sharpe_ratio': 'Sharpe Ratio',
-        'annual_volatility': 'Volatilità Annuale',
+        'annual_volatility': 'Annual Volatility',
         'max_drawdown': 'Max Drawdown'
     }
-    
+
     title = f'Top {top_n} - {metric_labels.get(metric, metric)}'
-    
-    # Colore basato su valore positivo/negativo
+
+    # Color based on positive/negative value
     colors = [THEME_CONFIG['positive'] if x > 0 else THEME_CONFIG['negative'] for x in df_sorted[metric]]
 
     fig = go.Figure(data=[
@@ -270,33 +270,33 @@ def create_top_performers_chart(metrics: pd.DataFrame, metric: str,
 
 
 def create_optimal_allocation_pie(suggested_weights: Dict[str, float], top_n: int = 15) -> str:
-    """Crea grafico a torta per allocazione ottimale suggerita"""
-    
+    """Creates a pie chart for the suggested optimal allocation"""
+
     if not suggested_weights:
-        return "<p>Nessuna allocazione suggerita disponibile</p>"
-    
-    # Converti in DataFrame e ordina
-    df = pd.DataFrame(list(suggested_weights.items()), columns=['Ticker', 'Peso'])
-    df = df.sort_values('Peso', ascending=False)
-    
-    # Prendi top N e aggrega il resto in "Altri"
+        return "<p>No suggested allocation available</p>"
+
+    # Convert to a DataFrame and sort
+    df = pd.DataFrame(list(suggested_weights.items()), columns=['Ticker', 'Weight'])
+    df = df.sort_values('Weight', ascending=False)
+
+    # Take the top N and aggregate the rest into "Other"
     if len(df) > top_n:
         top_df = df.head(top_n).copy()
-        others_weight = df.iloc[top_n:]['Peso'].sum()
+        others_weight = df.iloc[top_n:]['Weight'].sum()
         if others_weight > 0:
-            others_row = pd.DataFrame([['Altri', others_weight]], columns=['Ticker', 'Peso'])
+            others_row = pd.DataFrame([['Other', others_weight]], columns=['Ticker', 'Weight'])
             df = pd.concat([top_df, others_row], ignore_index=True)
-    
+
     fig = px.pie(
         df,
-        values='Peso',
+        values='Weight',
         names='Ticker',
-        title='Allocazione Ottimale Suggerita',
+        title='Suggested Optimal Allocation',
         color_discrete_sequence=CHART_COLORWAY,
         hole=0.4
     )
 
-    # Labels eleganti fuori
+    # Elegant outside labels
     fig.update_traces(
         textposition='outside',
         textinfo='label+percent',
@@ -304,7 +304,7 @@ def create_optimal_allocation_pie(suggested_weights: Dict[str, float], top_n: in
         textfont_color=THEME_CONFIG['text_primary'],
         marker=dict(line=dict(color=THEME_CONFIG['bg_card'], width=2)),
         pull=[0.08, 0.05, 0.03] + [0] * (len(df) - 3),  # Pull out top 3
-        hovertemplate='<b>%{label}</b><br>Peso suggerito: %{percent}<br>Valore: %{value:.2%}<extra></extra>',
+        hovertemplate='<b>%{label}</b><br>Suggested weight: %{percent}<br>Value: %{value:.2%}<extra></extra>',
         insidetextorientation='horizontal'
     )
 
@@ -329,14 +329,14 @@ def create_optimal_allocation_pie(suggested_weights: Dict[str, float], top_n: in
 
 def create_diversification_curve_chart(curve: list, chosen_n: int) -> str:
     """
-    Grafico della curva di diversificazione reale: volatilità di un
-    portafoglio equipesato al crescere del numero di titoli (ordinati per
-    Sharpe decrescente), con il punto scelto evidenziato. Rende visibile il
-    principio (Evans & Archer 1968 / Elton & Gruber 1977) su cui si basa il
-    numero di titoli effettivamente selezionato.
+    Chart of the real diversification curve: volatility of an
+    equal-weighted portfolio as the number of stocks grows (sorted by
+    descending Sharpe), with the chosen point highlighted. Makes visible
+    the principle (Evans & Archer 1968 / Elton & Gruber 1977) on which the
+    actually selected number of stocks is based.
     """
     if not curve:
-        return "<p>Dati insufficienti per la curva di diversificazione</p>"
+        return "<p>Insufficient data for the diversification curve</p>"
 
     ns = [p['n'] for p in curve]
     vols = [p['volatility'] for p in curve]
@@ -346,8 +346,8 @@ def create_diversification_curve_chart(curve: list, chosen_n: int) -> str:
         x=ns, y=vols, mode='lines+markers',
         line=dict(color=THEME_CONFIG['accent'], width=3),
         marker=dict(size=5, color=THEME_CONFIG['accent']),
-        hovertemplate='N=%{x} titoli<br>Volatilità: %{y:.2%}<extra></extra>',
-        name='Volatilità portafoglio equipesato'
+        hovertemplate='N=%{x} stocks<br>Volatility: %{y:.2%}<extra></extra>',
+        name='Equal-weighted portfolio volatility'
     ))
 
     if chosen_n and chosen_n <= len(curve):
@@ -356,14 +356,14 @@ def create_diversification_curve_chart(curve: list, chosen_n: int) -> str:
             x=[chosen_n], y=[chosen_vol], mode='markers',
             marker=dict(size=14, color=THEME_CONFIG['positive'], symbol='star',
                        line=dict(width=2, color=THEME_CONFIG['bg_card'])),
-            hovertemplate=f'N scelto = {chosen_n}<br>Volatilità: %{{y:.2%}}<extra></extra>',
-            name='N scelto'
+            hovertemplate=f'Chosen N = {chosen_n}<br>Volatility: %{{y:.2%}}<extra></extra>',
+            name='Chosen N'
         ))
 
     fig.update_layout(_base_layout(
-        title='Curva di Diversificazione Reale: Volatilità vs Numero di Titoli',
-        xaxis_title='Numero di titoli (ordinati per Sharpe decrescente)',
-        yaxis_title='Volatilità annualizzata (equipesata)',
+        title='Real Diversification Curve: Volatility vs Number of Stocks',
+        xaxis_title='Number of stocks (sorted by descending Sharpe)',
+        yaxis_title='Annualized volatility (equal-weighted)',
         height=450,
         xaxis=_axis(),
         yaxis=_axis(tickformat='.0%'),
@@ -377,34 +377,34 @@ def create_diversification_curve_chart(curve: list, chosen_n: int) -> str:
 
 def create_allocation_comparison(current_weights: Dict[str, float],
                                 suggested_weights: Dict[str, float]) -> str:
-    """Confronta allocazione corrente vs suggerita"""
-    
+    """Compares the current allocation vs the suggested one"""
+
     tickers = list(set(list(current_weights.keys()) + list(suggested_weights.keys())))
-    
+
     current = [current_weights.get(t, 0) for t in tickers]
     suggested = [suggested_weights.get(t, 0) for t in tickers]
-    
-    # Ordina per peso suggerito
+
+    # Sort by suggested weight
     sorted_indices = sorted(range(len(suggested)), key=lambda i: suggested[i], reverse=True)
     tickers = [tickers[i] for i in sorted_indices]
     current = [current[i] for i in sorted_indices]
     suggested = [suggested[i] for i in sorted_indices]
-    
-    # Mostra solo i top 20 per leggibilità
+
+    # Show only the top 20 for readability
     if len(tickers) > 20:
         tickers = tickers[:20]
         current = current[:20]
         suggested = suggested[:20]
-    
+
     fig = go.Figure(data=[
-        go.Bar(name='Allocazione Corrente', x=tickers, y=current, marker_color=THEME_CONFIG['text_secondary']),
-        go.Bar(name='Allocazione Suggerita', x=tickers, y=suggested, marker_color=THEME_CONFIG['accent'])
+        go.Bar(name='Current Allocation', x=tickers, y=current, marker_color=THEME_CONFIG['text_secondary']),
+        go.Bar(name='Suggested Allocation', x=tickers, y=suggested, marker_color=THEME_CONFIG['accent'])
     ])
 
     fig.update_layout(_base_layout(
-        title='Confronto Allocazione: Corrente vs Suggerita',
+        title='Allocation Comparison: Current vs Suggested',
         xaxis_title='Ticker',
-        yaxis_title='Peso nel Portafoglio',
+        yaxis_title='Portfolio Weight',
         barmode='group',
         height=500,
         xaxis=_axis(tickangle=-45),
@@ -417,17 +417,17 @@ def create_allocation_comparison(current_weights: Dict[str, float],
 def create_backtest_chart(backtest_results: pd.DataFrame,
                          backtest_stats: Dict,
                          oos_start_date=None) -> str:
-    """Crea grafico performance storica con confronto benchmark"""
+    """Creates the historical performance chart with benchmark comparison"""
 
     if backtest_results.empty:
-        return "<p>Dati insufficienti per il backtest</p>"
-    
+        return "<p>Insufficient data for the backtest</p>"
+
     fig = go.Figure()
-    
-    # Definisci colori vivaci e spessori per ogni linea (Portafoglio in ciano
-    # elettrico, più spesso, per farlo risaltare rispetto ai benchmark)
+
+    # Define vivid colors and line widths for each series (Portfolio in
+    # electric cyan, thicker, to stand out against the benchmarks)
     colors = {
-        'Portafoglio': THEME_CONFIG['accent'],
+        'Portfolio': THEME_CONFIG['accent'],
         'S&P 500': THEME_CONFIG['accent_2'],
         'NASDAQ': THEME_CONFIG['warning'],
         'MSCI World': THEME_CONFIG['positive'],
@@ -436,7 +436,7 @@ def create_backtest_chart(backtest_results: pd.DataFrame,
     }
 
     widths = {
-        'Portafoglio': 4,
+        'Portfolio': 4,
         'S&P 500': 2,
         'NASDAQ': 2,
         'MSCI World': 2,
@@ -444,7 +444,7 @@ def create_backtest_chart(backtest_results: pd.DataFrame,
         'VT (Total World)': 2
     }
 
-    # Aggiungi ogni serie
+    # Add each series
     for col in backtest_results.columns:
         fig.add_trace(go.Scatter(
             x=backtest_results.index,
@@ -456,17 +456,17 @@ def create_backtest_chart(backtest_results: pd.DataFrame,
                 width=widths.get(col, 2)
             ),
             hovertemplate='<b>%{fullData.name}</b><br>' +
-                         'Data: %{x|%d/%m/%Y}<br>' +
-                         'Valore: %{y:.2f}<br>' +
+                         'Date: %{x|%d/%m/%Y}<br>' +
+                         'Value: %{y:.2f}<br>' +
                          '<extra></extra>'
         ))
 
-    # Marca la finestra out-of-sample: a sinistra della linea i dati sono
-    # in-sample (hanno influenzato scouting/selezione/pesi), a destra sono
-    # il test onesto mai visto da quelle fasi.
-    # Nota: passiamo le date come stringhe (non pd.Timestamp) perché add_vline/
-    # add_vrect con Timestamp scatenano un'aritmetica interna di Plotly
-    # incompatibile con le versioni recenti di pandas.
+    # Mark the out-of-sample window: to the left of the line the data is
+    # in-sample (it influenced scouting/selection/weights), to the right it
+    # is the honest test never seen by those stages.
+    # Note: we pass the dates as strings (not pd.Timestamp) because
+    # add_vline/add_vrect with a Timestamp trigger internal Plotly
+    # arithmetic that is incompatible with recent pandas versions.
     if oos_start_date is not None and backtest_results.index[0] <= oos_start_date <= backtest_results.index[-1]:
         oos_start_str = oos_start_date.strftime('%Y-%m-%d')
         oos_end_str = backtest_results.index[-1].strftime('%Y-%m-%d')
@@ -474,21 +474,21 @@ def create_backtest_chart(backtest_results: pd.DataFrame,
             x0=oos_start_str, x1=oos_end_str,
             fillcolor=THEME_CONFIG['accent_2'], opacity=0.12, line_width=0
         )
-        # Nota: add_vline con i parametri di comodo annotation_text/
-        # annotation_position scatena un bug interno di Plotly 6.x sugli assi
-        # temporali (TypeError int+str). Aggiungiamo linea e annotazione come
-        # due chiamate separate per evitarlo.
+        # Note: add_vline with the convenience annotation_text/
+        # annotation_position parameters triggers an internal Plotly 6.x
+        # bug on time axes (TypeError int+str). We add the line and the
+        # annotation as two separate calls to avoid it.
         fig.add_vline(x=oos_start_str, line_width=2, line_dash="dash", line_color=THEME_CONFIG['accent_2'])
         fig.add_annotation(
             x=oos_start_str, y=1, yref="paper", yanchor="bottom",
-            text="Inizio Out-of-Sample", showarrow=False,
+            text="Out-of-Sample Start", showarrow=False,
             font=dict(color=THEME_CONFIG['accent_2'], size=11)
         )
 
     fig.update_layout(_base_layout(
-        title='Performance Storica: Portafoglio vs Benchmark',
-        xaxis_title='Data',
-        yaxis_title='Valore Investimento (Base 100)',
+        title='Historical Performance: Portfolio vs Benchmarks',
+        xaxis_title='Date',
+        yaxis_title='Investment Value (Base 100)',
         height=600,
         hovermode='x unified',
         legend=dict(
@@ -510,12 +510,13 @@ def create_backtest_chart(backtest_results: pd.DataFrame,
 
 def create_oos_comparison_table(backtest_stats: Dict, backtest_stats_oos: Dict) -> str:
     """
-    Tabella di confronto tra le statistiche sull'intero periodo (in-sample,
-    include i dati usati per scegliere i titoli) e quelle sulla sola finestra
-    out-of-sample (mai vista da scouting/selezione/ottimizzazione).
+    Comparison table between the whole-period statistics (in-sample,
+    includes the data used to choose the stocks) and the out-of-sample
+    window only (never seen by scouting/selection/optimization).
 
-    Il numero "onesto" per giudicare la selezione è quello Out-of-Sample: è
-    normale (e atteso) che sia più basso di quello sul periodo intero.
+    The "honest" number for judging the selection is the Out-of-Sample
+    one: it is normal (and expected) for it to be lower than the
+    whole-period one.
     """
     if not backtest_stats_oos:
         return ""
@@ -541,22 +542,23 @@ def create_oos_comparison_table(backtest_stats: Dict, backtest_stats_oos: Dict) 
 
     return f'''
     <div class="info-box info-box--accent2">
-        <h3>🔍 Periodo Intero vs Out-of-Sample: perché la differenza conta</h3>
-        <p>I titoli sono stati scelti perché avevano il miglior punteggio storico <strong>nella finestra
-        usata per la selezione</strong>. Il rendimento sul "Periodo Intero" include quindi gli stessi dati
-        usati per sceglierli, ed è sistematicamente ottimistico. La colonna <strong>"Solo Out-of-Sample"</strong>
-        misura invece la performance <strong>su dati mai visti</strong> da scouting, selezione smart e
-        ottimizzazione dei pesi: è il numero più onesto per giudicare se la selezione ha un valore predittivo reale.</p>
+        <h3>🔍 Whole Period vs Out-of-Sample: why the difference matters</h3>
+        <p>The stocks were chosen because they had the best historical score <strong>within
+        the window used for selection</strong>. The "Whole Period" return therefore includes the
+        same data used to choose them, and is systematically optimistic. The <strong>"Out-of-Sample
+        Only"</strong> column instead measures performance <strong>on data never seen</strong> by
+        scouting, smart selection and weight optimization: it is the most honest number for judging
+        whether the selection has real predictive value.</p>
     </div>
     <div class="table-scroll">
     <table class="data-table data-table--accent2">
     <thead>
         <tr>
-            <th>Serie</th>
-            <th class="num">Rend. Periodo Intero</th>
-            <th class="num">Rend. Solo Out-of-Sample</th>
-            <th class="num">Sharpe OOS</th>
-            <th class="num">Max DD OOS</th>
+            <th>Series</th>
+            <th class="num">Whole-Period Return</th>
+            <th class="num">Out-of-Sample-Only Return</th>
+            <th class="num">OOS Sharpe</th>
+            <th class="num">OOS Max DD</th>
         </tr>
     </thead>
     <tbody>
@@ -569,28 +571,27 @@ def create_oos_comparison_table(backtest_stats: Dict, backtest_stats_oos: Dict) 
 
 def create_validation_section(walk_forward_stats: Dict, opt_info: Dict, currency_risk_info: Dict) -> str:
     """
-    Sezione di validazione statistica: metodologia di ottimizzazione
-    (shrinkage + solver vero), risultati walk-forward multi-fold con
-    intervalli di confidenza bootstrap confrontati con benchmark
-    (equal-weight, minimum-variance naive), e disclosure del rischio di
-    cambio non coperto.
+    Statistical validation section: optimization methodology (shrinkage +
+    real solver), multi-fold walk-forward results with bootstrap confidence
+    intervals compared against benchmarks (equal-weight, naive
+    minimum-variance), and disclosure of unhedged currency risk.
     """
     html = '<div class="validation-section">'
 
     if opt_info:
         html += f'''
         <div class="info-box info-box--accent2">
-            <h3>⚙️ Metodologia di Ottimizzazione</h3>
-            <p>I pesi non sono più un punteggio euristico: sono la soluzione di un vero problema di ottimizzazione
-            di Markowitz (solver SLSQP vincolato), con obiettivo <strong>{opt_info['objective']}</strong> per il
-            profilo di rischio selezionato.</p>
+            <h3>⚙️ Optimization Methodology</h3>
+            <p>The weights are no longer a heuristic score: they are the solution of a real Markowitz
+            optimization problem (constrained SLSQP solver), with objective <strong>{opt_info['objective']}</strong>
+            for the selected risk profile.</p>
             <ul>
-                <li><strong>Shrinkage rendimenti attesi:</strong> {opt_info['return_shrinkage']:.0%} verso la media
-                dell'universo (i rendimenti storici trailing sono stime rumorose; usarli grezzi premia gli outlier
-                del campione osservato)</li>
-                <li><strong>Shrinkage covarianza:</strong> {opt_info['cov_shrinkage']:.0%} verso il target a
-                correlazione costante (stile Ledoit &amp; Wolf 2004; la matrice campionaria pura su poche
-                centinaia di osservazioni è mal condizionata)</li>
+                <li><strong>Expected return shrinkage:</strong> {opt_info['return_shrinkage']:.0%} toward the
+                universe average (trailing historical returns are noisy estimates; using them raw rewards
+                outliers in the observed sample)</li>
+                <li><strong>Covariance shrinkage:</strong> {opt_info['cov_shrinkage']:.0%} toward the
+                constant-correlation target (Ledoit &amp; Wolf 2004 style; the pure sample matrix over a few
+                hundred observations is ill-conditioned)</li>
             </ul>
         </div>
         '''
@@ -611,19 +612,19 @@ def create_validation_section(walk_forward_stats: Dict, opt_info: Dict, currency
             '''
         html += f'''
         <div class="info-box info-box--accent2">
-            <h3>🔬 Validazione Walk-Forward (multi-fold, fuori campione)</h3>
-            <p>Invece di un singolo split in-sample/out-of-sample, i pesi vengono ri-stimati più volte su finestre
-            di training progressive e testati SOLO sul periodo immediatamente successivo, mai visto durante la
-            stima (nessun look-ahead). Include un costo di transazione sul turnover ad ogni ribilanciamento.
-            L'intervallo (Sharpe CI 90%) è ottenuto con block-bootstrap: se include lo zero, la performance non è
-            statisticamente distinguibile dal rumore.</p>
+            <h3>🔬 Walk-Forward Validation (multi-fold, out-of-sample)</h3>
+            <p>Instead of a single in-sample/out-of-sample split, the weights are re-estimated multiple times
+            over progressive training windows and tested ONLY on the immediately following period, never seen
+            during estimation (no look-ahead). Includes a transaction cost on turnover at every rebalancing.
+            The interval (Sharpe CI 90%) is obtained via block-bootstrap: if it includes zero, the performance
+            is not statistically distinguishable from noise.</p>
         </div>
         <div class="table-scroll">
         <table class="data-table data-table--accent2">
         <thead>
             <tr>
-                <th>Strategia</th>
-                <th class="num">Rend. Totale OOS</th>
+                <th>Strategy</th>
+                <th class="num">OOS Total Return</th>
                 <th class="num">Sharpe</th>
                 <th class="num">Sharpe CI 90%</th>
                 <th class="num">Max Drawdown</th>
@@ -642,7 +643,7 @@ def create_validation_section(walk_forward_stats: Dict, opt_info: Dict, currency
             if cur == 'EUR' or exp <= 0:
                 continue
             vol = currency_risk_info['fx_volatility_by_currency'].get(cur)
-            vol_str = f"{vol:.1%}" if vol is not None else "n/d"
+            vol_str = f"{vol:.1%}" if vol is not None else "n/a"
             exp_rows += f'''
             <tr>
                 <td><strong>{cur}</strong></td>
@@ -652,19 +653,19 @@ def create_validation_section(walk_forward_stats: Dict, opt_info: Dict, currency
             '''
         html += f'''
         <div class="info-box info-box--warning">
-            <h3>💱 Rischio di Cambio (base EUR, non coperto)</h3>
-            <p>Il resto del report calcola rendimento/rischio in valuta locale di ciascun titolo. Un investitore
-            con capitale in EUR che tiene titoli in altre valute sopporta anche un rischio di cambio non
-            modellato altrove: quantificato qui a parte, come approssimazione al primo ordine (non tiene conto
-            delle correlazioni tra valute o tra valuta ed equity).</p>
+            <h3>💱 Currency Risk (EUR base, unhedged)</h3>
+            <p>The rest of the report computes return/risk in each stock's local currency. An investor
+            with capital in EUR holding stocks in other currencies also bears a currency risk not
+            modeled elsewhere: quantified here separately, as a first-order approximation (it does not
+            account for correlations between currencies or between currency and equity).</p>
             <div class="table-scroll">
             <table class="data-table data-table--compact">
-            <thead><tr><th>Valuta</th><th class="num">% Portafoglio</th><th class="num">Volatilità FX annua</th></tr></thead>
+            <thead><tr><th>Currency</th><th class="num">% of Portfolio</th><th class="num">Annual FX Volatility</th></tr></thead>
             <tbody>{exp_rows}</tbody>
             </table>
             </div>
-            <p class="muted-note" style="margin-top: 10px;">Esposizione totale non-EUR:
-            <strong>{currency_risk_info['non_base_exposure']:.1%}</strong> — contributo di volatilità stimato:
+            <p class="muted-note" style="margin-top: 10px;">Total non-EUR exposure:
+            <strong>{currency_risk_info['non_base_exposure']:.1%}</strong> — estimated volatility contribution:
             <strong>{currency_risk_info['estimated_fx_volatility_contribution']:.2%}</strong></p>
         </div>
         '''
@@ -676,15 +677,15 @@ def create_validation_section(walk_forward_stats: Dict, opt_info: Dict, currency
 def create_correlation_analysis_section(correlation_matrix: pd.DataFrame,
                                        metrics: pd.DataFrame = None,
                                        threshold: float = None) -> str:
-    """Crea sezione HTML con analisi dettagliata delle correlazioni"""
-    
+    """Creates an HTML section with a detailed correlation analysis"""
+
     if threshold is None:
         threshold = CORRELATION_CONFIG['high_correlation_threshold']
-    
+
     if correlation_matrix.empty:
-        return "<p>Dati insufficienti per l'analisi delle correlazioni</p>"
-    
-    # Trova coppie problematiche
+        return "<p>Insufficient data for correlation analysis</p>"
+
+    # Find problematic pairs
     high_corr = []
     for i in range(len(correlation_matrix.columns)):
         for j in range(i+1, len(correlation_matrix.columns)):
@@ -695,50 +696,50 @@ def create_correlation_analysis_section(correlation_matrix: pd.DataFrame,
                     'ticker2': correlation_matrix.columns[j],
                     'correlation': corr_value
                 })
-    
+
     high_corr_df = pd.DataFrame(high_corr).sort_values('correlation', ascending=False) if high_corr else pd.DataFrame()
-    
-    # Calcola correlazioni medie
+
+    # Compute average correlations
     avg_corr = correlation_matrix.mean().sort_values(ascending=False)
-    
-    # Titoli più correlati (problematici)
+
+    # Most correlated stocks (problematic)
     most_corr = avg_corr.head(10)
-    # Titoli meno correlati (buoni)
+    # Least correlated stocks (good)
     least_corr = avg_corr.tail(10)
-    
+
     html = '<div class="correlation-analysis">'
 
-    # Box di riepilogo
+    # Summary box
     total_pairs = len(correlation_matrix) * (len(correlation_matrix) - 1) // 2
     high_pairs = len(high_corr_df)
 
     if high_pairs > 10:
         alert_icon = "⚠️"
-        alert_msg = f"ATTENZIONE: {high_pairs} coppie con correlazione >{threshold:.0%}"
+        alert_msg = f"WARNING: {high_pairs} pairs with correlation >{threshold:.0%}"
         alert_class = "info-box--danger"
     elif high_pairs > 0:
         alert_icon = "⚠️"
-        alert_msg = f"{high_pairs} coppie con correlazione >{threshold:.0%} - Migliorabile"
+        alert_msg = f"{high_pairs} pairs with correlation >{threshold:.0%} - Room for improvement"
         alert_class = "info-box--warning"
     else:
         alert_icon = "✅"
-        alert_msg = "Ottima diversificazione! Nessuna coppia con correlazione eccessiva"
+        alert_msg = "Excellent diversification! No pair with excessive correlation"
         alert_class = "info-box--success"
 
     html += f'''
     <div class="info-box {alert_class}">
         <h3>{alert_icon} {alert_msg}</h3>
         <p style="margin-top: 10px;">
-            Su {total_pairs} coppie possibili, {high_pairs} hanno correlazione superiore al {threshold:.0%}.
-            {'Una correlazione alta significa che i titoli si muovono insieme, riducendo la diversificazione reale.' if high_pairs > 0 else ''}
+            Out of {total_pairs} possible pairs, {high_pairs} have a correlation above {threshold:.0%}.
+            {'A high correlation means the stocks move together, reducing real diversification.' if high_pairs > 0 else ''}
         </p>
     </div>
     '''
 
-    # Tabella coppie problematiche
+    # Problematic pairs table
     if not high_corr_df.empty:
         html += '''
-        <h3 class="section-subtitle negative">🔴 Coppie con Correlazione Alta</h3>
+        <h3 class="section-subtitle negative">🔴 Highly Correlated Pairs</h3>
         <div class="table-scroll">
         <table class="data-table data-table--danger">
         <thead>
@@ -746,8 +747,8 @@ def create_correlation_analysis_section(correlation_matrix: pd.DataFrame,
                 <th>#</th>
                 <th>Ticker 1</th>
                 <th>Ticker 2</th>
-                <th class="num">Correlazione</th>
-                <th>Azione Suggerita</th>
+                <th class="num">Correlation</th>
+                <th>Suggested Action</th>
             </tr>
         </thead>
         <tbody>
@@ -760,18 +761,18 @@ def create_correlation_analysis_section(correlation_matrix: pd.DataFrame,
                 <td><strong>{row['ticker1']}</strong></td>
                 <td><strong>{row['ticker2']}</strong></td>
                 <td class="num negative"><strong>{row['correlation']:.1%}</strong></td>
-                <td style="font-size: 0.9em;">Considera di ridurre o eliminare uno dei due</td>
+                <td style="font-size: 0.9em;">Consider reducing or dropping one of the two</td>
             </tr>
             '''
 
         html += '</tbody></table></div>'
 
-    # Due colonne: titoli più/meno correlati
+    # Two columns: most/least correlated stocks
     html += '''
     <div class="two-col-grid">
         <div>
-            <h3 class="section-subtitle negative">📉 Titoli PIÙ Correlati</h3>
-            <p class="muted-note">Candidati da ridurre per migliorare diversificazione</p>
+            <h3 class="section-subtitle negative">📉 MOST Correlated Stocks</h3>
+            <p class="muted-note">Candidates to reduce to improve diversification</p>
             <table class="data-table data-table--compact">
     '''
 
@@ -787,8 +788,8 @@ def create_correlation_analysis_section(correlation_matrix: pd.DataFrame,
             </table>
         </div>
         <div>
-            <h3 class="section-subtitle positive">📈 Titoli MENO Correlati</h3>
-            <p class="muted-note">Migliori per diversificazione - considera di aumentare</p>
+            <h3 class="section-subtitle positive">📈 LEAST Correlated Stocks</h3>
+            <p class="muted-note">Best for diversification - consider increasing</p>
             <table class="data-table data-table--compact">
     '''
 
@@ -810,39 +811,39 @@ def create_correlation_analysis_section(correlation_matrix: pd.DataFrame,
     return html
 
 
-def create_allocation_table(suggested_weights: Dict[str, float], 
+def create_allocation_table(suggested_weights: Dict[str, float],
                            metrics: pd.DataFrame = None) -> str:
-    """Crea una tabella HTML elegante per l'allocazione ottimale"""
-    
+    """Creates an elegant HTML table for the optimal allocation"""
+
     if not suggested_weights:
-        return "<p>Nessuna allocazione disponibile</p>"
-    
-    # Converti in DataFrame
-    df = pd.DataFrame(list(suggested_weights.items()), columns=['Ticker', 'Peso Suggerito'])
-    df = df.sort_values('Peso Suggerito', ascending=False)
-    
-    # Aggiungi metriche se disponibili
+        return "<p>No allocation available</p>"
+
+    # Convert to a DataFrame
+    df = pd.DataFrame(list(suggested_weights.items()), columns=['Ticker', 'Suggested Weight'])
+    df = df.sort_values('Suggested Weight', ascending=False)
+
+    # Add metrics if available
     if metrics is not None and not metrics.empty:
         metrics_dict = metrics.set_index('ticker')[['annual_return', 'annual_volatility', 'sharpe_ratio']].to_dict('index')
-        
-        df['Rendimento'] = df['Ticker'].map(lambda x: metrics_dict.get(x, {}).get('annual_return', 0))
-        df['Volatilità'] = df['Ticker'].map(lambda x: metrics_dict.get(x, {}).get('annual_volatility', 0))
+
+        df['Return'] = df['Ticker'].map(lambda x: metrics_dict.get(x, {}).get('annual_return', 0))
+        df['Volatility'] = df['Ticker'].map(lambda x: metrics_dict.get(x, {}).get('annual_volatility', 0))
         df['Sharpe'] = df['Ticker'].map(lambda x: metrics_dict.get(x, {}).get('sharpe_ratio', 0))
-    
-    # Formatta le percentuali
-    df['Peso %'] = (df['Peso Suggerito'] * 100).apply(lambda x: f'{x:.2f}%')
-    
-    # Crea HTML
+
+    # Format the percentages
+    df['Weight %'] = (df['Suggested Weight'] * 100).apply(lambda x: f'{x:.2f}%')
+
+    # Build the HTML
     html = '<div class="table-scroll">'
     html += '<table class="data-table">'
     html += '<thead><tr>'
     html += '<th>#</th>'
     html += '<th>Ticker</th>'
-    html += '<th class="num">Peso Suggerito</th>'
+    html += '<th class="num">Suggested Weight</th>'
 
     if metrics is not None and not metrics.empty:
-        html += '<th class="num">Rendimento</th>'
-        html += '<th class="num">Volatilità</th>'
+        html += '<th class="num">Return</th>'
+        html += '<th class="num">Volatility</th>'
         html += '<th class="num">Sharpe</th>'
 
     html += '</tr></thead><tbody>'
@@ -851,11 +852,11 @@ def create_allocation_table(suggested_weights: Dict[str, float],
         html += '<tr>'
         html += f'<td>{idx + 1}</td>'
         html += f'<td><strong>{row["Ticker"]}</strong></td>'
-        html += f'<td class="num accent"><strong>{row["Peso %"]}</strong></td>'
+        html += f'<td class="num accent"><strong>{row["Weight %"]}</strong></td>'
 
         if metrics is not None and not metrics.empty:
-            html += f'<td class="num {_pct_class(row["Rendimento"])}">{row["Rendimento"]:.2%}</td>'
-            html += f'<td class="num">{row["Volatilità"]:.2%}</td>'
+            html += f'<td class="num {_pct_class(row["Return"])}">{row["Return"]:.2%}</td>'
+            html += f'<td class="num">{row["Volatility"]:.2%}</td>'
             html += f'<td class="num"><strong>{row["Sharpe"]:.2f}</strong></td>'
 
         html += '</tr>'
@@ -867,43 +868,43 @@ def create_allocation_table(suggested_weights: Dict[str, float],
 
 def create_earnings_table(earnings_df: pd.DataFrame) -> str:
     """
-    Crea tabella HTML dedicata agli utili dei titoli in portafoglio: EPS
-    trailing/forward, crescita utili, margine, e prossima data di
-    pubblicazione con stima di consensus (EPS/ricavi attesi).
+    Creates an HTML table dedicated to the earnings of the stocks in the
+    portfolio: trailing/forward EPS, earnings growth, margin, and the next
+    release date with consensus estimates (expected EPS/revenue).
 
-    Ordinata per prossimità della prossima pubblicazione (i titoli con
-    dato mancante, tipicamente esteri fuori copertura Yahoo, in fondo).
+    Sorted by proximity of the next release (stocks with missing data,
+    typically foreign ones outside Yahoo's coverage, at the bottom).
     """
     if earnings_df is None or earnings_df.empty:
-        return "<p>Dati utili non disponibili</p>"
+        return "<p>Earnings data not available</p>"
 
     df = earnings_df.copy()
 
     def fmt_eps(row, col):
         val = row.get(col)
         if pd.isna(val):
-            return 'n/d'
+            return 'n/a'
         cur = row.get('currency') if pd.notna(row.get('currency')) else ''
         return f"{val:.2f} {cur}".strip()
 
     def fmt_pct(val):
-        return f'{val:+.1%}' if pd.notna(val) else 'n/d'
+        return f'{val:+.1%}' if pd.notna(val) else 'n/a'
 
     def fmt_date(row):
         d = row.get('next_earnings_date')
         if pd.isna(d) or d is None:
-            return 'n/d'
+            return 'n/a'
         days = row.get('days_to_earnings')
-        days_str = f' ({int(days)}g)' if pd.notna(days) else ''
+        days_str = f' ({int(days)}d)' if pd.notna(days) else ''
         return f'{d}{days_str}'
 
     def fmt_revenue(val):
         if pd.isna(val):
-            return 'n/d'
+            return 'n/a'
         if val >= 1e9:
-            return f'{val / 1e9:.2f} Mld'
+            return f'{val / 1e9:.2f} B'
         if val >= 1e6:
-            return f'{val / 1e6:.1f} Mln'
+            return f'{val / 1e6:.1f} M'
         return f'{val:,.0f}'
 
     html = '<div class="table-scroll">'
@@ -912,11 +913,11 @@ def create_earnings_table(earnings_df: pd.DataFrame) -> str:
     html += '<th>Ticker</th>'
     html += '<th class="num">EPS (trailing)</th>'
     html += '<th class="num">EPS (forward)</th>'
-    html += '<th class="num">Crescita Utili YoY</th>'
-    html += '<th class="num">Margine Netto</th>'
-    html += '<th>Prossima Pubblicazione</th>'
-    html += '<th class="num">EPS Atteso (consensus)</th>'
-    html += '<th class="num">Ricavi Attesi (consensus)</th>'
+    html += '<th class="num">YoY Earnings Growth</th>'
+    html += '<th class="num">Net Margin</th>'
+    html += '<th>Next Release</th>'
+    html += '<th class="num">Expected EPS (consensus)</th>'
+    html += '<th class="num">Expected Revenue (consensus)</th>'
     html += '</tr></thead><tbody>'
 
     for _, row in df.iterrows():
@@ -942,47 +943,47 @@ def create_earnings_table(earnings_df: pd.DataFrame) -> str:
 
 def create_dividend_table(dividend_df: pd.DataFrame) -> str:
     """
-    Crea tabella HTML dedicata ai dividendi dei titoli in portafoglio:
-    dividendo per azione, yield (calcolato da noi, non dal campo Yahoo
-    ambiguo), payout ratio, prossima data di stacco e di pagamento.
+    Creates an HTML table dedicated to the dividends of the stocks in the
+    portfolio: dividend per share, yield (computed by us, not from Yahoo's
+    ambiguous field), payout ratio, next ex-dividend and payment date.
 
-    Ordinata per yield decrescente (i titoli senza dividendo, es. growth
-    stock, in fondo).
+    Sorted by descending yield (non-dividend-paying stocks, e.g. growth
+    stocks, at the bottom).
     """
     if dividend_df is None or dividend_df.empty:
-        return "<p>Dati dividendi non disponibili</p>"
+        return "<p>Dividend data not available</p>"
 
     df = dividend_df.copy()
 
     def fmt_amount(row, col):
         val = row.get(col)
         if pd.isna(val):
-            return 'n/d'
+            return 'n/a'
         cur = row.get('currency') if pd.notna(row.get('currency')) else ''
         return f"{val:.2f} {cur}".strip()
 
     def fmt_pct(val):
-        return f'{val:.2%}' if pd.notna(val) else 'n/d'
+        return f'{val:.2%}' if pd.notna(val) else 'n/a'
 
     def fmt_date(val):
-        return str(val) if pd.notna(val) and val is not None else 'n/d'
+        return str(val) if pd.notna(val) and val is not None else 'n/a'
 
     html = '<div class="table-scroll">'
     html += '<table class="data-table">'
     html += '<thead><tr>'
     html += '<th>Ticker</th>'
-    html += '<th class="num">Dividendo/Azione</th>'
+    html += '<th class="num">Dividend/Share</th>'
     html += '<th class="num">Dividend Yield</th>'
     html += '<th class="num">Payout Ratio</th>'
-    html += '<th>Prossimo Stacco (ex-div)</th>'
-    html += '<th>Prossimo Pagamento</th>'
+    html += '<th>Next Ex-Dividend Date</th>'
+    html += '<th>Next Payment Date</th>'
     html += '</tr></thead><tbody>'
 
     for _, row in df.iterrows():
         no_dividend = pd.isna(row.get('dividend_rate')) or row.get('dividend_rate') == 0
         html += '<tr>'
         html += f'<td><strong>{row["ticker"]}</strong></td>'
-        html += f'<td class="num">{"n/d (nessun dividendo)" if no_dividend else fmt_amount(row, "dividend_rate")}</td>'
+        html += f'<td class="num">{"n/a (no dividend)" if no_dividend else fmt_amount(row, "dividend_rate")}</td>'
         html += f'<td class="num positive">{fmt_pct(row.get("dividend_yield"))}</td>' if not no_dividend else '<td class="num">-</td>'
         html += f'<td class="num">{fmt_pct(row.get("payout_ratio"))}</td>'
         html += f'<td>{fmt_date(row.get("next_ex_dividend_date"))}</td>'
@@ -996,17 +997,17 @@ def create_dividend_table(dividend_df: pd.DataFrame) -> str:
 def create_practical_allocation_section(allocation_df: pd.DataFrame,
                                         allocation_info: Dict,
                                         total_capital: float) -> str:
-    """Crea sezione HTML per allocazione pratica operativa"""
-    
+    """Creates the HTML section for the practical operational allocation"""
+
     if allocation_df.empty:
-        return "<p>Allocazione non disponibile</p>"
-    
-    # Torta allocazione
+        return "<p>Allocation not available</p>"
+
+    # Allocation pie chart
     pie_fig = px.pie(
         allocation_df,
-        values='importo_€',
+        values='amount_eur',
         names='ticker',
-        title=f'Allocazione Pratica - €{total_capital:,.0f}',
+        title=f'Practical Allocation - €{total_capital:,.0f}',
         color_discrete_sequence=CHART_COLORWAY,
         hole=0.4
     )
@@ -1017,7 +1018,7 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
         textfont_size=11,
         textfont_color=THEME_CONFIG['text_primary'],
         marker=dict(line=dict(color=THEME_CONFIG['bg_card'], width=2)),
-        hovertemplate='<b>%{label}</b><br>Importo: €%{value:,.0f}<br>Percentuale: %{percent}<extra></extra>'
+        hovertemplate='<b>%{label}</b><br>Amount: €%{value:,.0f}<br>Share: %{percent}<extra></extra>'
     )
 
     pie_fig.update_layout(_base_layout(
@@ -1028,8 +1029,8 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
     ))
 
     pie_html = pie_fig.to_html(include_plotlyjs='cdn', div_id="practical_allocation_pie", config={'responsive': True})
-    
-    # Tabella dettagliata
+
+    # Detailed table
     table_html = '''
     <div class="table-scroll" style="margin-top: 30px;">
     <table class="data-table">
@@ -1037,11 +1038,11 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
         <tr>
             <th>#</th>
             <th>Ticker</th>
-            <th>Settore</th>
-            <th class="num">Peso %</th>
-            <th class="num">Importo €</th>
+            <th>Sector</th>
+            <th class="num">Weight %</th>
+            <th class="num">Amount €</th>
             <th class="num">Sharpe</th>
-            <th class="num">Rend. Annuo</th>
+            <th class="num">Annual Return</th>
         </tr>
     </thead>
     <tbody>
@@ -1052,19 +1053,19 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
         <tr>
             <td>{idx + 1}</td>
             <td class="accent"><strong>{row['ticker']}</strong></td>
-            <td style="font-size: 0.9em;">{row['settore']}</td>
-            <td class="num"><strong>{row['peso_%']:.2f}%</strong></td>
-            <td class="num positive"><strong>€{row['importo_€']:,.2f}</strong></td>
+            <td style="font-size: 0.9em;">{row['sector']}</td>
+            <td class="num"><strong>{row['weight_pct']:.2f}%</strong></td>
+            <td class="num positive"><strong>€{row['amount_eur']:,.2f}</strong></td>
             <td class="num">{row['sharpe_ratio']:.2f}</td>
-            <td class="num {_pct_class(row['rendimento_annuo'])}">{row['rendimento_annuo']:.1%}</td>
+            <td class="num {_pct_class(row['annual_return'])}">{row['annual_return']:.1%}</td>
         </tr>
         '''
 
-    # Riga totale
-    total_invested = allocation_df['importo_€'].sum()
+    # Total row
+    total_invested = allocation_df['amount_eur'].sum()
     table_html += f'''
         <tr class="data-table__total">
-            <td colspan="4">TOTALE INVESTITO:</td>
+            <td colspan="4">TOTAL INVESTED:</td>
             <td class="num positive">€{total_invested:,.2f}</td>
             <td colspan="2"></td>
         </tr>
@@ -1073,12 +1074,12 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
     if allocation_info['cash_amount'] > 0:
         table_html += f'''
         <tr class="data-table__cash">
-            <td colspan="4">LIQUIDITÀ:</td>
+            <td colspan="4">CASH:</td>
             <td class="num warning">€{allocation_info['cash_amount']:,.2f}</td>
             <td colspan="2" style="font-size: 0.9em;">({allocation_info['cash_percent']:.1f}%)</td>
         </tr>
         <tr class="data-table__grand-total">
-            <td colspan="4">TOTALE PORTAFOGLIO:</td>
+            <td colspan="4">TOTAL PORTFOLIO:</td>
             <td class="num">€{total_capital:,.2f}</td>
             <td colspan="2"></td>
         </tr>
@@ -1086,42 +1087,42 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
 
     table_html += '</tbody></table></div>'
 
-    # Box info allocazione
+    # Allocation info box
     info_html = f'''
     <div class="info-box">
-        <h3>💼 Informazioni Allocazione Pratica</h3>
+        <h3>💼 Practical Allocation Information</h3>
         <div class="info-grid">
             <div>
-                <strong>Capitale Totale:</strong><br>
+                <strong>Total Capital:</strong><br>
                 €{total_capital:,.2f}
             </div>
             <div>
-                <strong>Titoli Selezionati:</strong><br>
-                {allocation_info['n_stocks']} su {len(PORTFOLIO_TICKERS)} disponibili
+                <strong>Selected Stocks:</strong><br>
+                {allocation_info['n_stocks']} out of {len(PORTFOLIO_TICKERS)} available
             </div>
             <div>
-                <strong>Correlazione Media:</strong><br>
-                {allocation_info['avg_correlation']:.1%} {'✅ Ottima' if allocation_info['avg_correlation'] < 0.3 else '⚠️ Migliorabile' if allocation_info['avg_correlation'] < 0.5 else '🔴 Alta'}
+                <strong>Average Correlation:</strong><br>
+                {allocation_info['avg_correlation']:.1%} {'✅ Excellent' if allocation_info['avg_correlation'] < 0.3 else '⚠️ Room for improvement' if allocation_info['avg_correlation'] < 0.5 else '🔴 High'}
             </div>
             <div>
-                <strong>Settori Diversificati:</strong><br>
-                {len(allocation_info['sector_distribution'])} settori
+                <strong>Diversified Sectors:</strong><br>
+                {len(allocation_info['sector_distribution'])} sectors
             </div>
         </div>
     </div>
     '''
-    
-    # Matrice correlazione della selezione
+
+    # Correlation matrix of the selection
     corr_matrix_html = ""
     if not allocation_info['correlation_matrix'].empty and len(allocation_info['selected_tickers']) > 1:
         corr_fig = px.imshow(
             allocation_info['correlation_matrix'],
-            labels=dict(color="Correlazione"),
+            labels=dict(color="Correlation"),
             x=allocation_info['correlation_matrix'].columns,
             y=allocation_info['correlation_matrix'].index,
             color_continuous_scale=[[0, THEME_CONFIG['accent']], [0.5, THEME_CONFIG['bg_card_alt']], [1, THEME_CONFIG['negative']]],
             aspect="auto",
-            title=f"Matrice Correlazione Portafoglio Selezionato ({allocation_info['n_stocks']} titoli)"
+            title=f"Correlation Matrix of the Selected Portfolio ({allocation_info['n_stocks']} stocks)"
         )
 
         corr_fig.update_layout(_base_layout(
@@ -1131,23 +1132,23 @@ def create_practical_allocation_section(allocation_df: pd.DataFrame,
         ))
 
         corr_matrix_html = f'''
-        <h3 class="section-subtitle accent">📊 Matrice di Correlazione Ottimizzata</h3>
+        <h3 class="section-subtitle accent">📊 Optimized Correlation Matrix</h3>
         <div class="info-box">
-            <p>Questa matrice mostra le correlazioni solo tra i titoli selezionati per il tuo capitale.
-            I titoli sono stati scelti per minimizzare la correlazione media e massimizzare la diversificazione.</p>
+            <p>This matrix shows correlations only among the stocks selected for your capital.
+            The stocks were chosen to minimize average correlation and maximize diversification.</p>
         </div>
         <div class="chart-container">
             {corr_fig.to_html(include_plotlyjs='cdn', div_id="practical_correlation_matrix", config={'responsive': True})}
         </div>
         '''
 
-    # HTML completo
+    # Full HTML
     full_html = f'''
     {info_html}
     <div class="chart-container" style="margin-top: 30px;">
         {pie_html}
     </div>
-    <h3 class="section-subtitle accent">📋 Dettaglio Allocazione con Importi Esatti</h3>
+    <h3 class="section-subtitle accent">📋 Allocation Detail with Exact Amounts</h3>
     {table_html}
     {corr_matrix_html}
     '''
@@ -1182,140 +1183,140 @@ def generate_html_report(
     output_file: str = "portfolio_report.html"
 ) -> str:
     """
-    Genera il report HTML completo
+    Generates the full HTML report
     """
-    
-    # Sezione "perché N titoli": curva di diversificazione reale, se disponibile
+
+    # "Why N stocks" section: real diversification curve, if available
     selection_section_html = ""
     if selection_info and selection_info.get('diversification_curve'):
         curve_chart = create_diversification_curve_chart(
             selection_info['diversification_curve'], selection_info.get('n_stocks')
         )
         binding = selection_info.get('binding_constraint')
-        binding_label = "il capitale disponibile" if binding == 'capitale' else "la diversificazione statistica"
+        binding_label = "the available capital" if binding == 'capital' else "statistical diversification"
         selection_section_html = f'''
-        <div class="section" id="numero-titoli">
-            <h2>Perché {selection_info['n_stocks']} Titoli</h2>
+        <div class="section" id="number-of-stocks">
+            <h2>Why {selection_info['n_stocks']} Stocks</h2>
             <div class="info-box">
-                <h3>📐 Numero titoli scelto dai dati, non da fasce fisse</h3>
-                <p>Il numero di titoli non è più deciso per fasce di capitale arbitrarie: viene calcolato dal
-                minimo empirico della vera curva di rischio del portafoglio (principio della "diversificazione
-                ingenua" di <em>Evans &amp; Archer, 1968</em> e <em>Elton &amp; Gruber, 1977</em>) e vincolato dal
-                capitale disponibile. Si continua ad aggiungere titoli finché il rischio scende, ci si ferma dove
-                smette di migliorare in modo stabile (non al primo singolo punto basso, per non scambiare un
-                avvallamento casuale della curva per la vera convergenza).</p>
+                <h3>📐 Number of stocks chosen from the data, not fixed brackets</h3>
+                <p>The number of stocks is no longer decided from arbitrary capital brackets: it is
+                computed from the empirical minimum of the portfolio's real risk curve (the "naive
+                diversification" principle of <em>Evans &amp; Archer, 1968</em> and <em>Elton &amp; Gruber,
+                1977</em>) and constrained by the available capital. Stocks keep being added while risk
+                keeps falling, stopping where it stops improving in a stable way (not at the first single
+                low point, so as not to mistake a random dip in the curve for true convergence).</p>
                 <div class="info-grid" style="margin-top: 15px;">
-                    <div><strong>Ottimale per diversificazione:</strong><br>{selection_info['statistically_optimal_n']} titoli
-                    (minimo empirico della curva di rischio)</div>
-                    <div><strong>Sostenibile dal capitale:</strong><br>{selection_info['capital_affordable_n']} titoli</div>
-                    <div><strong>Vincolo più stringente:</strong><br>{binding_label}</div>
-                    <div><strong>Titoli scelti:</strong><br>{selection_info['n_stocks']}</div>
+                    <div><strong>Optimal for diversification:</strong><br>{selection_info['statistically_optimal_n']} stocks
+                    (empirical minimum of the risk curve)</div>
+                    <div><strong>Affordable by the capital:</strong><br>{selection_info['capital_affordable_n']} stocks</div>
+                    <div><strong>Most binding constraint:</strong><br>{binding_label}</div>
+                    <div><strong>Stocks chosen:</strong><br>{selection_info['n_stocks']}</div>
                 </div>
             </div>
             <div class="chart-container">
                 {curve_chart}
             </div>
-            <p class="muted-note">Il grafico mostra la volatilità di un portafoglio equipesato aggiungendo via via
-            titoli in ordine di Sharpe decrescente: oltre il punto evidenziato, il rischio smette di scendere in modo
-            stabile (può anche risalire leggermente, se i titoli successivi in classifica sono più volatili).</p>
+            <p class="muted-note">The chart shows the volatility of an equal-weighted portfolio as stocks
+            are added in order of descending Sharpe: beyond the highlighted point, risk stops falling in a
+            stable way (it may even rise slightly, if the next-ranked stocks are more volatile).</p>
         </div>
         '''
 
-    # Prepara i grafici
+    # Prepare the charts
     charts = []
 
-    # 1. Scatter Rischio-Rendimento
+    # 1. Risk-Return Scatter
     charts.append(create_scatter_risk_return(metrics))
-    
-    # 2. Diversificazione settoriale e geografica  
+
+    # 2. Sector and geographic diversification
     sector_chart_idx = None
     geo_chart_idx = None
-    
+
     if not sector_breakdown.empty:
         sector_chart_idx = len(charts)
         charts.append(create_pie_chart(
-            sector_breakdown, 
-            'weight', 
+            sector_breakdown,
+            'weight',
             sector_breakdown.columns[0],
-            'Diversificazione per Settore'
+            'Diversification by Sector'
         ))
-    
+
     if not geographic_breakdown.empty:
         geo_chart_idx = len(charts)
         charts.append(create_pie_chart(
             geographic_breakdown,
             'weight',
             geographic_breakdown.columns[0],
-            'Diversificazione Geografica'
+            'Geographic Diversification'
         ))
-    
-    # 3. Correlazioni
+
+    # 3. Correlations
     corr_chart_idx = None
     if not correlation_matrix.empty:
         corr_chart_idx = len(charts)
         charts.append(create_correlation_heatmap(correlation_matrix))
-        # Crea analisi dettagliata correlazioni (threshold da config)
+        # Build the detailed correlation analysis (threshold from config)
         correlation_analysis_html = create_correlation_analysis_section(correlation_matrix, metrics)
     else:
-        correlation_analysis_html = "<p>Dati insufficienti per analisi correlazioni</p>"
-    
-    # 4. Allocazione ottimale (torta e tabella)
+        correlation_analysis_html = "<p>Insufficient data for correlation analysis</p>"
+
+    # 4. Optimal allocation (pie chart and table)
     alloc_chart_idx = None
     if suggested_weights:
         alloc_chart_idx = len(charts)
         charts.append(create_optimal_allocation_pie(suggested_weights, top_n=REPORT_CONFIG['top_n_allocation_pie']))
         allocation_table = create_allocation_table(suggested_weights, metrics)
     else:
-        allocation_table = "<p>Nessuna allocazione suggerita disponibile</p>"
-    
-    # 5. Confronto allocazioni (se disponibile corrente)
+        allocation_table = "<p>No suggested allocation available</p>"
+
+    # 5. Allocation comparison (if a current one is available)
     comparison_chart_idx = None
     if current_weights and suggested_weights:
         comparison_chart_idx = len(charts)
         charts.append(create_allocation_comparison(current_weights, suggested_weights))
-    
-    # 6. Backtest storico
+
+    # 6. Historical backtest
     backtest_chart_html = ""
     oos_comparison_html = ""
     if backtest_results is not None and not backtest_results.empty:
         backtest_chart_html = create_backtest_chart(backtest_results, backtest_stats or {}, oos_start_date)
         oos_comparison_html = create_oos_comparison_table(backtest_stats or {}, backtest_stats_oos or {})
 
-    # 6B. Validazione statistica: metodologia ottimizzazione + walk-forward + rischio di cambio
+    # 6B. Statistical validation: optimization methodology + walk-forward + currency risk
     validation_section_html = ""
     if walk_forward_stats or opt_info:
         validation_section_html = create_validation_section(walk_forward_stats, opt_info, currency_risk_info)
 
-    # Aggiungi info liquidità se presente
+    # Add cash info if present
     cash_info_html = ""
     if cash_allocation > 0:
         equity_allocation = 1 - cash_allocation
         cash_info_html = f'''
         <div class="info-box info-box--success">
-            <h3>💰 Componente Liquidità</h3>
-            <p><strong>Allocazione suggerita:</strong></p>
+            <h3>💰 Cash Component</h3>
+            <p><strong>Suggested allocation:</strong></p>
             <ul>
-                <li><strong>{equity_allocation:.1%}</strong> in azioni (portafoglio ottimizzato)</li>
-                <li><strong>{cash_allocation:.1%}</strong> in liquidità/cash</li>
+                <li><strong>{equity_allocation:.1%}</strong> in equities (optimized portfolio)</li>
+                <li><strong>{cash_allocation:.1%}</strong> in cash</li>
             </ul>
             <p style="margin-top: 10px; font-size: 0.95em;">
-                La componente liquidità è calcolata in base alla volatilità del portafoglio e alle condizioni di mercato.
-                Serve come cuscinetto di sicurezza e opportunità per ribilanciamenti futuri.
+                The cash component is computed based on portfolio volatility and market conditions.
+                It acts as a safety buffer and an opportunity reserve for future rebalancing.
             </p>
         </div>
         '''
 
-    # Statistiche portfolio
+    # Portfolio statistics
     portfolio_stats_html = f"""
     <div class="stats-grid">
         <div class="stat-card">
-            <h3>Rendimento Annuale</h3>
+            <h3>Annual Return</h3>
             <p class="stat-value {_pct_class(portfolio_metrics.get('annual_return', 0))}">
                 {portfolio_metrics.get('annual_return', 0):.2%}
             </p>
         </div>
         <div class="stat-card">
-            <h3>Volatilità Annuale</h3>
+            <h3>Annual Volatility</h3>
             <p class="stat-value">{portfolio_metrics.get('annual_volatility', 0):.2%}</p>
         </div>
         <div class="stat-card">
@@ -1329,43 +1330,43 @@ def generate_html_report(
             <p class="stat-value negative">{portfolio_metrics.get('max_drawdown', 0):.2%}</p>
         </div>
         <div class="stat-card">
-            <h3>Score Diversificazione</h3>
+            <h3>Diversification Score</h3>
             <p class="stat-value {'positive' if diversification_score > 70 else 'warning' if diversification_score > 50 else 'negative'}">
                 {diversification_score:.1f}/100
             </p>
         </div>
         <div class="stat-card">
-            <h3>N° Titoli</h3>
+            <h3>Number of Stocks</h3>
             <p class="stat-value">{len(metrics)}</p>
         </div>
         <div class="stat-card">
-            <h3>Titoli Effettivi (Effective N)</h3>
+            <h3>Effective Stocks (Effective N)</h3>
             <p class="stat-value">{(concentration_info or {}).get('effective_n', 0):.1f}</p>
         </div>
         <div class="stat-card">
-            <h3>VaR 95% (giornaliero)</h3>
+            <h3>VaR 95% (daily)</h3>
             <p class="stat-value negative">{portfolio_metrics.get('var_95', 0):.2%}</p>
         </div>
         <div class="stat-card">
-            <h3>CVaR 95% (giornaliero)</h3>
+            <h3>CVaR 95% (daily)</h3>
             <p class="stat-value negative">{portfolio_metrics.get('cvar_95', 0):.2%}</p>
         </div>
     </div>
     """
-    
-    # Tabella metriche dettagliate
+
+    # Detailed metrics table
     top_n_metrics = REPORT_CONFIG['top_n_metrics_table']
     top_metrics_df = metrics.sort_values('sharpe_ratio', ascending=False).head(top_n_metrics).copy()
 
-    # Il P/E e lo Sharpe vanno formattati a parte, non come percentuale: il
-    # float_format unico di to_html si applica a tutte le colonne float allo
-    # stesso modo, quindi pre-formattiamo qui le colonne che non lo sono
-    # (un P/E basso o un rendimento superiore al 1000% altrimenti verrebbero
-    # scambiati per l'altro formato in base alla sola magnitudine)
+    # The P/E and the Sharpe need to be formatted separately, not as a
+    # percentage: to_html's single float_format applies to all float
+    # columns the same way, so the non-percentage columns are
+    # pre-formatted here (otherwise a low P/E or a return above 1000%
+    # could be mistaken for the other format based on magnitude alone)
     has_pe = 'trailing_pe' in top_metrics_df.columns
     if has_pe:
         top_metrics_df['trailing_pe'] = top_metrics_df['trailing_pe'].apply(
-            lambda x: f'{x:.1f}x' if pd.notna(x) else 'n/d'
+            lambda x: f'{x:.1f}x' if pd.notna(x) else 'n/a'
         )
     top_metrics_df['sharpe_ratio'] = top_metrics_df['sharpe_ratio'].apply(lambda x: f'{x:.2f}')
 
@@ -1385,34 +1386,34 @@ def generate_html_report(
         columns=metrics_columns
     )
 
-    # Indice di navigazione: solo le voci per sezioni realmente presenti nel report
-    nav_items = [('#metriche', '📈 Metriche')]
+    # Navigation index: only the entries for sections actually present in the report
+    nav_items = [('#metrics', '📈 Metrics')]
     if selection_section_html:
-        nav_items.append(('#numero-titoli', '📐 N° Titoli'))
-    nav_items.append(('#rischio-rendimento', '🎯 Rischio/Rendimento'))
+        nav_items.append(('#number-of-stocks', '📐 # of Stocks'))
+    nav_items.append(('#risk-return', '🎯 Risk/Return'))
     if backtest_chart_html:
         nav_items.append(('#backtest', '📈 Backtest'))
     if validation_section_html:
-        nav_items.append(('#validazione', '🔬 Validazione'))
+        nav_items.append(('#validation', '🔬 Validation'))
     if sector_chart_idx is not None:
-        nav_items.append(('#settoriale', '🏭 Settori'))
+        nav_items.append(('#sectors', '🏭 Sectors'))
     if geo_chart_idx is not None:
-        nav_items.append(('#geografica', '🌍 Geografia'))
+        nav_items.append(('#geography', '🌍 Geography'))
     if corr_chart_idx is not None:
-        nav_items.append(('#correlazione', '🔗 Correlazione'))
+        nav_items.append(('#correlation', '🔗 Correlation'))
     if alloc_chart_idx is not None:
-        nav_items.append(('#allocazione-ottimale', '💡 Allocazione Ottimale'))
+        nav_items.append(('#optimal-allocation', '💡 Optimal Allocation'))
     if comparison_chart_idx is not None:
-        nav_items.append(('#confronto', '💼 Confronto'))
+        nav_items.append(('#comparison', '💼 Comparison'))
     if practical_allocation_df is not None and not practical_allocation_df.empty:
-        nav_items.append(('#allocazione-pratica', '💰 Allocazione Pratica'))
+        nav_items.append(('#practical-allocation', '💰 Practical Allocation'))
     has_earnings = earnings_df is not None and not earnings_df.empty
     if has_earnings:
-        nav_items.append(('#utili', '💵 Utili'))
+        nav_items.append(('#earnings', '💵 Earnings'))
     has_dividends = dividend_df is not None and not dividend_df.empty
     if has_dividends:
-        nav_items.append(('#dividendi', '💶 Dividendi'))
-    nav_items.append(('#dettaglio-metriche', '📋 Dettaglio Titoli'))
+        nav_items.append(('#dividends', '💶 Dividends'))
+    nav_items.append(('#stock-detail', '📋 Stock Detail'))
 
     nav_html = ''.join(f'<a href="{href}">{label}</a>' for href, label in nav_items)
 
@@ -1421,14 +1422,14 @@ def generate_html_report(
 
     T = THEME_CONFIG
 
-    # Template HTML
+    # HTML template
     html_template = f"""
     <!DOCTYPE html>
-    <html lang="it">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Analisi Portafoglio - {datetime.now().strftime('%d/%m/%Y')}</title>
+        <title>Portfolio Analysis - {datetime.now().strftime('%d/%m/%Y')}</title>
         <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1816,34 +1817,34 @@ def generate_html_report(
     <body>
         <div class="container">
             <header>
-                <h1>📊 ANALISI PORTAFOGLIO AZIONARIO</h1>
-                <p>Report generato il {datetime.now().strftime('%d/%m/%Y alle %H:%M')}</p>
+                <h1>📊 STOCK PORTFOLIO ANALYSIS</h1>
+                <p>Report generated on {datetime.now().strftime('%d/%m/%Y at %H:%M')}</p>
             </header>
 
             <nav class="section-nav">{nav_html}</nav>
 
             <div class="content">
-                <div class="section" id="metriche">
-                    <h2>Metriche di Portafoglio</h2>
+                <div class="section" id="metrics">
+                    <h2>Portfolio Metrics</h2>
                     {portfolio_stats_html}
 
                     <div class="info-box">
-                        <h3>💡 Interpretazione</h3>
+                        <h3>💡 Interpretation</h3>
                         <ul>
-                            <li><strong>Sharpe Ratio &gt; 1:</strong> Ottimo rapporto rischio/rendimento</li>
-                            <li><strong>Score Diversificazione &gt; 70:</strong> Portafoglio ben diversificato (combina correlazione media e concentrazione dei pesi)</li>
-                            <li><strong>Max Drawdown:</strong> Peggiore perdita dal picco (più basso è meglio)</li>
-                            <li><strong>Titoli Effettivi (Effective N):</strong> quanti titoli equipesati equivalgono alla concentrazione reale del portafoglio (es. 15 titoli con un 50% su uno solo pesano come ~3-4 titoli equipesati)</li>
-                            <li><strong>VaR 95% giornaliero:</strong> nel 5% dei giorni peggiori, la perdita è stata pari o superiore a questo valore</li>
-                            <li><strong>CVaR 95% giornaliero:</strong> perdita media nei giorni oltre la soglia del VaR — più informativo del VaR sulla reale gravità delle code negative</li>
+                            <li><strong>Sharpe Ratio &gt; 1:</strong> Excellent risk/return ratio</li>
+                            <li><strong>Diversification Score &gt; 70:</strong> Well-diversified portfolio (combines average correlation and weight concentration)</li>
+                            <li><strong>Max Drawdown:</strong> Worst loss from a peak (lower is better)</li>
+                            <li><strong>Effective Stocks (Effective N):</strong> how many equal-weighted stocks match the portfolio's real concentration (e.g. 15 stocks with 50% in one of them weigh like ~3-4 equal-weighted stocks)</li>
+                            <li><strong>Daily VaR 95%:</strong> on the worst 5% of days, the loss was at or beyond this value</li>
+                            <li><strong>Daily CVaR 95%:</strong> average loss on days beyond the VaR threshold — more informative than the VaR about the real severity of the negative tail</li>
                         </ul>
                     </div>
                 </div>
 
                 {selection_section_html}
 
-                <div class="section" id="rischio-rendimento">
-                    <h2>Analisi Rischio-Rendimento</h2>
+                <div class="section" id="risk-return">
+                    <h2>Risk-Return Analysis</h2>
                     <div class="chart-container">
                         {charts[0]}
                     </div>
@@ -1851,14 +1852,14 @@ def generate_html_report(
 
                 {f'''
                 <div class="section" id="backtest">
-                    <h2>Backtest Storico</h2>
+                    <h2>Historical Backtest</h2>
                     <div class="info-box info-box--warning">
-                        <h3>ℹ️ Come Interpretare il Backtest</h3>
-                        <p>Questo grafico mostra come il portafoglio ottimizzato avrebbe performato nel periodo analizzato,
-                        confrontato con i principali indici di mercato. <strong>Nota:</strong> Le performance passate non garantiscono risultati futuri.</p>
-                        <p style="margin-top: 10px;">La zona ombreggiata (a destra della linea tratteggiata "Inizio Out-of-Sample")
-                        è la finestra di dati <strong>mai vista</strong> da scouting, selezione smart e ottimizzazione dei pesi:
-                        è l'unica parte del grafico che costituisce un test onesto, non circolare, della selezione.</p>
+                        <h3>ℹ️ How to Read the Backtest</h3>
+                        <p>This chart shows how the optimized portfolio would have performed over the analyzed period,
+                        compared with the main market indices. <strong>Note:</strong> past performance does not guarantee future results.</p>
+                        <p style="margin-top: 10px;">The shaded area (to the right of the "Out-of-Sample Start" dashed line)
+                        is the data window <strong>never seen</strong> by scouting, smart selection and weight optimization:
+                        it is the only part of the chart that constitutes an honest, non-circular test of the selection.</p>
                     </div>
                     <div class="chart-container">
                         {backtest_chart_html}
@@ -1868,15 +1869,15 @@ def generate_html_report(
                 ''' if backtest_chart_html else ''}
 
                 {f'''
-                <div class="section" id="validazione">
-                    <h2>Validazione Statistica e Metodologia</h2>
+                <div class="section" id="validation">
+                    <h2>Statistical Validation and Methodology</h2>
                     {validation_section_html}
                 </div>
                 ''' if validation_section_html else ''}
 
                 {f'''
-                <div class="section" id="settoriale">
-                    <h2>Diversificazione Settoriale</h2>
+                <div class="section" id="sectors">
+                    <h2>Sector Diversification</h2>
                     <div class="chart-container">
                         {charts[sector_chart_idx]}
                     </div>
@@ -1884,8 +1885,8 @@ def generate_html_report(
                 ''' if sector_chart_idx is not None else ''}
 
                 {f'''
-                <div class="section" id="geografica">
-                    <h2>Diversificazione Geografica</h2>
+                <div class="section" id="geography">
+                    <h2>Geographic Diversification</h2>
                     <div class="chart-container">
                         {charts[geo_chart_idx]}
                     </div>
@@ -1893,43 +1894,43 @@ def generate_html_report(
                 ''' if geo_chart_idx is not None else ''}
 
                 {f'''
-                <div class="section" id="correlazione">
-                    <h2>Matrice di Correlazione</h2>
+                <div class="section" id="correlation">
+                    <h2>Correlation Matrix</h2>
                     <div class="chart-container">
                         {charts[corr_chart_idx]}
                     </div>
 
-                    <h3 class="section-subtitle accent">📊 Analisi Dettagliata Correlazioni</h3>
+                    <h3 class="section-subtitle accent">📊 Detailed Correlation Analysis</h3>
                     {correlation_analysis_html}
                 </div>
                 ''' if corr_chart_idx is not None else ''}
 
                 {f'''
-                <div class="section" id="allocazione-ottimale">
-                    <h2>Allocazione Ottimale Suggerita</h2>
+                <div class="section" id="optimal-allocation">
+                    <h2>Suggested Optimal Allocation</h2>
                     <div class="info-box">
-                        <h3>📊 Strategia di Allocazione con Riduzione Correlazioni</h3>
-                        <p>Questa allocazione è ottimizzata considerando:</p>
+                        <h3>📊 Allocation Strategy with Correlation Reduction</h3>
+                        <p>This allocation is optimized taking into account:</p>
                         <ul>
-                            <li><strong>Profilo di rischio</strong> selezionato (rapporto rischio/rendimento)</li>
-                            <li><strong>Riduzione correlazioni alte</strong> - I titoli con correlazione media >50% ricevono peso ridotto</li>
-                            <li><strong>Diversificazione</strong> - Peso massimo {ALLOCATION_CONFIG['max_weight_per_stock']:.0%} per singolo titolo</li>
+                            <li><strong>Selected risk profile</strong> (risk/return trade-off)</li>
+                            <li><strong>High correlation reduction</strong> - Stocks with average correlation >50% receive a reduced weight</li>
+                            <li><strong>Diversification</strong> - Maximum weight {ALLOCATION_CONFIG['max_weight_per_stock']:.0%} per single stock</li>
                         </ul>
-                        <p style="margin-top: 10px;"><em>Confronta con la sezione "Analisi Correlazioni" per vedere quali titoli sono stati penalizzati.</em></p>
+                        <p style="margin-top: 10px;"><em>Compare with the "Correlation Analysis" section to see which stocks were penalized.</em></p>
                     </div>
                     {cash_info_html}
                     <div class="chart-container">
                         {charts[alloc_chart_idx]}
                     </div>
 
-                    <h3 class="section-subtitle accent">📋 Dettaglio Allocazione per Titolo</h3>
+                    <h3 class="section-subtitle accent">📋 Allocation Detail per Stock</h3>
                     {allocation_table}
                 </div>
                 ''' if alloc_chart_idx is not None else ''}
 
                 {f'''
-                <div class="section" id="confronto">
-                    <h2>Confronto: Allocazione Corrente vs Suggerita</h2>
+                <div class="section" id="comparison">
+                    <h2>Comparison: Current vs Suggested Allocation</h2>
                     <div class="chart-container">
                         {charts[comparison_chart_idx]}
                     </div>
@@ -1937,73 +1938,73 @@ def generate_html_report(
                 ''' if comparison_chart_idx is not None else ''}
 
                 {f'''
-                <div class="section section--highlight" id="allocazione-pratica">
-                    <h2>💰 ALLOCAZIONE PRATICA OPERATIVA</h2>
+                <div class="section section--highlight" id="practical-allocation">
+                    <h2>💰 PRACTICAL OPERATIONAL ALLOCATION</h2>
                     <div class="info-box info-box--warning">
-                        <h3>🎯 Come Investire Concretamente</h3>
-                        <p>Questa sezione traduce la teoria in pratica. In base al tuo capitale di <strong>€{total_capital:,.2f}</strong>,
-                        abbiamo selezionato <strong>{practical_allocation_info['n_stocks']} titoli</strong> ottimali che bilanciano:</p>
+                        <h3>🎯 How to Invest Concretely</h3>
+                        <p>This section translates theory into practice. Based on your capital of <strong>€{total_capital:,.2f}</strong>,
+                        we selected <strong>{practical_allocation_info['n_stocks']} optimal stocks</strong> that balance:</p>
                         <ul>
-                            <li><strong>Diversificazione</strong> - Correlazione media {practical_allocation_info['avg_correlation']:.1%}</li>
-                            <li><strong>Performance</strong> - Titoli con migliori Sharpe Ratio</li>
-                            <li><strong>Praticità</strong> - Importi gestibili per titolo (min €500)</li>
-                            <li><strong>Settori</strong> - {len(practical_allocation_info['sector_distribution'])} settori diversi</li>
+                            <li><strong>Diversification</strong> - Average correlation {practical_allocation_info['avg_correlation']:.1%}</li>
+                            <li><strong>Performance</strong> - Stocks with the best Sharpe Ratios</li>
+                            <li><strong>Practicality</strong> - Manageable amounts per stock (min €500)</li>
+                            <li><strong>Sectors</strong> - {len(practical_allocation_info['sector_distribution'])} different sectors</li>
                         </ul>
-                        <p style="margin-top: 10px;"><em>💡 Con meno capitale, concentrarsi su pochi titoli ben selezionati è più efficace che frammentare troppo.</em></p>
+                        <p style="margin-top: 10px;"><em>💡 With less capital, focusing on a few well-chosen stocks is more effective than spreading too thin.</em></p>
                     </div>
                     {create_practical_allocation_section(practical_allocation_df, practical_allocation_info, total_capital)}
                 </div>
                 ''' if practical_allocation_df is not None and not practical_allocation_df.empty else ''}
 
                 {f'''
-                <div class="section" id="utili">
-                    <h2>💵 Utili dei Titoli in Portafoglio</h2>
+                <div class="section" id="earnings">
+                    <h2>💵 Earnings of the Stocks in the Portfolio</h2>
                     <p class="muted-note">
-                        <strong>EPS (trailing)</strong>/<strong>(forward)</strong>: utile per azione degli ultimi 12 mesi / atteso nei
-                        prossimi 12 mesi, nella valuta locale del titolo. <strong>Crescita Utili YoY</strong>: variazione degli utili
-                        rispetto allo stesso trimestre dell'anno precedente (negativo = utili in calo). <strong>Margine Netto</strong>:
-                        utile netto sui ricavi. <strong>Prossima Pubblicazione</strong>/<strong>EPS Atteso</strong>/<strong>Ricavi Attesi</strong>:
-                        data e stime di consensus degli analisti per la prossima trimestrale — sono previsioni, non dati certi, e per
-                        alcuni titoli esteri Yahoo Finance non ne pubblica. Le righe evidenziate indicano una pubblicazione entro 14 giorni.
+                        <strong>EPS (trailing)</strong>/<strong>(forward)</strong>: earnings per share over the last 12 months / expected over the
+                        next 12 months, in the stock's local currency. <strong>YoY Earnings Growth</strong>: change in earnings
+                        versus the same quarter a year earlier (negative = declining earnings). <strong>Net Margin</strong>:
+                        net income over revenue. <strong>Next Release</strong>/<strong>Expected EPS</strong>/<strong>Expected Revenue</strong>:
+                        date and analyst consensus estimates for the next quarterly report — these are forecasts, not certain figures, and for
+                        some foreign stocks Yahoo Finance publishes none. Highlighted rows indicate a release within 14 days.
                     </p>
                     {earnings_table_html}
                 </div>
                 ''' if has_earnings else ''}
 
                 {f'''
-                <div class="section" id="dividendi">
-                    <h2>💶 Dividendi dei Titoli in Portafoglio</h2>
+                <div class="section" id="dividends">
+                    <h2>💶 Dividends of the Stocks in the Portfolio</h2>
                     <p class="muted-note">
-                        <strong>Dividendo/Azione</strong>: dividendo annuo dichiarato, nella valuta locale del titolo.
-                        <strong>Dividend Yield</strong>: calcolato da noi come dividendo/azione diviso l'ultimo prezzo reale
-                        disponibile (non usiamo il campo di Yahoo, espresso in modo incoerente a seconda del titolo).
-                        <strong>Payout Ratio</strong>: quota dell'utile netto distribuita come dividendo (oltre il 100% indica
-                        un dividendo non coperto dagli utili correnti, un segnale di attenzione). <strong>Prossimo Stacco</strong>
-                        (ex-dividend date, la data da cui comprare il titolo non dà più diritto al prossimo dividendo) e
-                        <strong>Prossimo Pagamento</strong> sono le date note a Yahoo Finance; molti titoli (in particolare
-                        growth stock come PLTR, IONQ, NVDA) non distribuiscono dividendi.
+                        <strong>Dividend/Share</strong>: declared annual dividend, in the stock's local currency.
+                        <strong>Dividend Yield</strong>: computed by us as dividend/share divided by the latest real price
+                        available (we do not use Yahoo's field, which is expressed inconsistently depending on the stock).
+                        <strong>Payout Ratio</strong>: share of net income distributed as dividends (above 100% indicates
+                        a dividend not covered by current earnings, a warning sign). <strong>Next Ex-Dividend Date</strong>
+                        (the date from which buying the stock no longer entitles you to the next dividend) and
+                        <strong>Next Payment Date</strong> are the dates known to Yahoo Finance; many stocks (particularly
+                        growth stocks like PLTR, IONQ, NVDA) do not pay dividends.
                     </p>
                     {dividend_table_html}
                 </div>
                 ''' if has_dividends else ''}
 
-                <div class="section" id="dettaglio-metriche">
-                    <h2>Dettaglio Metriche Tutti i Titoli (Top {top_n_metrics})</h2>
+                <div class="section" id="stock-detail">
+                    <h2>Detailed Metrics for All Stocks (Top {top_n_metrics})</h2>
                     <p class="muted-note">
-                        Nota: <strong>var_95</strong> è il Value at Risk giornaliero (non annualizzato).
-                        <strong>trailing_pe</strong> è il P/E corrente (n/d se l'azienda non è profittevole o il dato non è disponibile).
-                        <strong>overvaluation_percentile</strong> è quanto un titolo è caro rispetto ai soli pari del proprio settore
-                        (media dei percentili su P/E, PEG e P/B; 0% = il più economico del settore, 100% = il più caro) — penalizza
-                        l'ingresso in portafoglio dei titoli più cari, non li esclude.
+                        Note: <strong>var_95</strong> is the daily Value at Risk (not annualized).
+                        <strong>trailing_pe</strong> is the current P/E (n/a if the company is not profitable or the data is unavailable).
+                        <strong>overvaluation_percentile</strong> is how expensive a stock is relative only to peers in its own sector
+                        (average of the P/E, PEG and P/B percentiles; 0% = the cheapest in the sector, 100% = the most expensive) — it penalizes
+                        the inclusion of pricier stocks in the portfolio, it does not exclude them.
                     </p>
                     {metrics_table}
                 </div>
             </div>
 
             <footer>
-                <p>Generato con Python, yfinance e Plotly | Dati di mercato forniti da Yahoo Finance</p>
+                <p>Generated with Python, yfinance and Plotly | Market data provided by Yahoo Finance</p>
                 <p style="margin-top: 10px; font-size: 0.85em;">
-                    ⚠️ Disclaimer: Questo report è solo a scopo informativo e non costituisce consulenza finanziaria.
+                    ⚠️ Disclaimer: This report is for informational purposes only and does not constitute financial advice.
                 </p>
             </footer>
         </div>
@@ -2011,7 +2012,7 @@ def generate_html_report(
     </html>
     """
 
-    # Salva il file
+    # Save the file
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_template)
 

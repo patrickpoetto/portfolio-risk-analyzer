@@ -1,9 +1,9 @@
 #!/bin/bash
-# Script per aprire il report HTML nel browser
+# Script to open the HTML report in the browser
 
 if [ -f "portfolio_report.html" ]; then
     open portfolio_report.html
-    echo "✅ Report aperto nel browser!"
+    echo "✅ Report opened in the browser!"
 else
-    echo "❌ Report non trovato. Esegui prima: python main.py"
+    echo "❌ Report not found. Run this first: python main.py"
 fi

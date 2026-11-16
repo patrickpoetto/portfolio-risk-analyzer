@@ -42,14 +42,15 @@ portfolio_monitor.py        Live valuation of real holdings vs. current market p
 dashboard.py                 Live dashboard (HTML) over the real holdings
 telegram_bot.py              Telegram bot: status queries + threshold-based price alerts
 show_allocation.py           Quick terminal-only view of the suggested allocation
-quick_start.py                Minimal end-to-end demo on a small ticker subset
+quick_start.py                Minimal end-to-end demo on a small ticker subset (supports --offline, see below)
+sample_data/demo_prices.csv   Synthetic price history used only by quick_start.py --offline
 ```
 
 Two parallel data models run through the project, kept deliberately separate:
 - **Hypothetical / what-if** (`profiles/*.json`, `portfolio_config.py`, `main.py`): "if I invested €X with risk profile Y, what allocation and metrics would I get?"
 - **Real holdings** (`holdings/`, `holdings.py`, `portfolio_monitor.py`): the actual positions held, their current market value and unrealized P&L, used by the live dashboard and the Telegram bot.
 
-Sample/demo data for both is excluded from this repository — see **Data & privacy** below.
+Real personal data for both is excluded from this repository — see **Data & privacy** below. The one exception is `sample_data/demo_prices.csv`, a small synthetic (non-real) price series used only by `quick_start.py --offline` for a no-internet demo.
 
 ## Tech stack
 
@@ -99,6 +100,22 @@ python show_allocation.py moderate
 
 Each run produces a self-contained interactive HTML report (Plotly charts embedded, no server required to view it).
 
+### Try it with no internet access
+
+`quick_start.py` can run entirely offline against a small synthetic price
+history bundled in `sample_data/demo_prices.csv` (a 10-ticker, 300-day
+random walk — not real market data), useful for a quick look at the
+metrics/correlation/diversification pipeline without depending on Yahoo
+Finance being reachable:
+
+```bash
+python quick_start.py --offline
+```
+
+Every other entry point (`main.py`, `show_allocation.py`, `dashboard.py`, ...)
+downloads real historical data from Yahoo Finance via `yfinance` and needs
+internet access, but no API key — it's a free, unauthenticated endpoint.
+
 ### Validate a new ticker before adding it
 
 ```bash
@@ -135,7 +152,7 @@ python telegram_bot.py         # starts the Telegram bot (requires .env)
 
 This is a public-facing copy of a personal project. The following are intentionally **not** included in this repository, even though the underlying scripts support them:
 
-- Real investor profiles and real portfolio holdings/transactions (these contain actual personal financial data) — only a generic, non-identifying sample profile (`profiles/esempio.json`) and an empty template (`profiles/_template.json`) are kept, for reference.
+- Real investor profiles and real portfolio holdings/transactions (these contain actual personal financial data) — only a generic, non-identifying sample profile (`profiles/example.json`) and an empty template (`profiles/_template.json`) are kept, for reference.
 - The `.env` file with live Telegram bot credentials — only `.env.example` (placeholder values) is included.
 - Generated HTML reports and logs — these are build artifacts, regenerated locally on each run.
 
