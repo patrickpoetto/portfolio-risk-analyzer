@@ -1,0 +1,18 @@
+{
+  "name": "Nome Persona",
+  "capital": 50000,
+  "risk_profile": "moderate",
+  "period": "5y",
+  "output_file": "report_nome.html",
+  "full_universe": false,
+  "holdings": {
+    "AAPL": 5000,
+    "MSFT": 3000
+  },
+  "sector_tilts": {
+    "Banking & Financial Services": -0.15,
+    "Mining & Materials": 0.05,
+    "Quantum Computing": 0.05,
+    "Data Centers": 0.05
+  }
+}

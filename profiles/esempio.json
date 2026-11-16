@@ -1,0 +1,9 @@
+{
+  "name": "Esempio",
+  "capital": 30000,
+  "risk_profile": "moderate",
+  "period": "5y",
+  "output_file": "report_esempio.html",
+  "full_universe": false,
+  "holdings": {}
+}
